@@ -36,6 +36,7 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
+  app.set('trust proxy', true);
   app.use(express.json({ limit: '5mb' }));
 
   // In-memory store for Discord OAuth session & ingested SCP:SL telemetry events
@@ -47,6 +48,26 @@ async function startServer() {
   const liveTelemetryEvents: TelemetryEvent[] = [];
 
   const cleanPteroUrl = (rawUrl: string) => rawUrl.trim().replace(/\/+$/, '');
+  const resolvePteroConfig = (body: Record<string, unknown>) => ({
+    panelUrl: String(body.panelUrl || process.env.PTERO_URL || 'https://panel.lumishost.com').trim(),
+    apiKey: String(body.apiKey || process.env.PTERO_CLIENT_API_KEY || '').trim(),
+    serverId: String(body.serverId || process.env.PTERO_SERVER_ID || '').trim()
+  });
+
+  const getRedirectUri = (req: express.Request): string => {
+    if (process.env.DISCORD_REDIRECT_URI) return process.env.DISCORD_REDIRECT_URI.trim();
+    if (typeof req.query.redirectUri === 'string' && req.query.redirectUri.trim()) {
+      return req.query.redirectUri.trim();
+    }
+    const host = (req.headers['x-forwarded-host'] as string) || req.headers.host || '';
+    if (host) {
+      const forwardedProto = (req.headers['x-forwarded-proto'] as string) || '';
+      const isLocalOrIp = /^(localhost|127\.0\.0\.1|\d+\.\d+\.\d+\.\d+)(:\d+)?$/i.test(host);
+      const proto = forwardedProto.split(',')[0].trim() || (isLocalOrIp ? req.protocol || 'http' : 'https');
+      return `${proto}://${host}/auth/callback`;
+    }
+    return `${process.env.APP_URL || 'http://localhost:3000'}/auth/callback`;
+  };
 
   // ============================================================================
   // 1. DISCORD OAUTH2 AUTHENTICATION (POPUP FLOW FOR IFRAME ENVIRONMENT)
@@ -64,9 +85,7 @@ async function startServer() {
 
   app.get('/api/auth/discord/url', (req, res) => {
     const clientId = (req.query.clientId as string) || runtimeDiscordClientId || process.env.DISCORD_CLIENT_ID || '';
-    const redirectUri =
-      (req.query.redirectUri as string) ||
-      `${process.env.APP_URL || 'http://localhost:3000'}/auth/callback`;
+    const redirectUri = getRedirectUri(req);
 
     lastRedirectUri = redirectUri;
 
@@ -97,7 +116,7 @@ async function startServer() {
     const code = req.query.code as string | undefined;
     const clientId = runtimeDiscordClientId || process.env.DISCORD_CLIENT_ID || '';
     const clientSecret = runtimeDiscordClientSecret || process.env.DISCORD_CLIENT_SECRET || '';
-    const redirectUri = lastRedirectUri || `${process.env.APP_URL || 'http://localhost:3000'}/auth/callback`;
+    const redirectUri = lastRedirectUri || getRedirectUri(req);
 
     if (!code) {
       return res.status(400).send('Code OAuth2 Discord manquant.');
@@ -188,7 +207,10 @@ async function startServer() {
       oauthConfigured: Boolean(
         (runtimeDiscordClientId || process.env.DISCORD_CLIENT_ID) &&
           (runtimeDiscordClientSecret || process.env.DISCORD_CLIENT_SECRET)
-      )
+      ),
+      pteroConfigured: Boolean(process.env.PTERO_CLIENT_API_KEY),
+      pteroServerId: process.env.PTERO_SERVER_ID || '',
+      pteroUrl: process.env.PTERO_URL || ''
     });
   });
 
@@ -216,7 +238,7 @@ async function startServer() {
   // ============================================================================
 
   app.post('/api/ptero/status', async (req, res) => {
-    const { panelUrl, apiKey, serverId } = req.body;
+    const { panelUrl, apiKey, serverId } = resolvePteroConfig(req.body || {});
     if (!panelUrl || !apiKey || !serverId) {
       return res.status(400).json({ error: 'Paramètres Pterodactyl manquants (URL, Clé API ou Server ID).' });
     }
@@ -262,7 +284,8 @@ async function startServer() {
   });
 
   app.post('/api/ptero/power', async (req, res) => {
-    const { panelUrl, apiKey, serverId, signal } = req.body;
+    const { panelUrl, apiKey, serverId } = resolvePteroConfig(req.body || {});
+    const { signal } = req.body || {};
     if (!panelUrl || !apiKey || !serverId || !signal) {
       return res.status(400).json({ error: 'Paramètres requis manquants pour le signal power.' });
     }
@@ -295,7 +318,8 @@ async function startServer() {
   });
 
   app.post('/api/ptero/command', async (req, res) => {
-    const { panelUrl, apiKey, serverId, command } = req.body;
+    const { panelUrl, apiKey, serverId } = resolvePteroConfig(req.body || {});
+    const { command } = req.body || {};
     if (!panelUrl || !apiKey || !serverId || !command) {
       return res.status(400).json({ error: 'Paramètres requis manquants pour la commande console.' });
     }
@@ -328,7 +352,8 @@ async function startServer() {
   });
 
   app.post('/api/ptero/files/write', async (req, res) => {
-    const { panelUrl, apiKey, serverId, filePath, content } = req.body;
+    const { panelUrl, apiKey, serverId } = resolvePteroConfig(req.body || {});
+    const { filePath, content } = req.body || {};
     if (!panelUrl || !apiKey || !serverId || !filePath || typeof content !== 'string') {
       return res.status(400).json({ error: 'Paramètres manquants pour l’écriture du fichier sur Pterodactyl.' });
     }
@@ -364,7 +389,8 @@ async function startServer() {
 
   // Read live LocalAdmin logs from Pterodactyl container (/home/container/.config/SCP Secret Laboratory/LocalAdminLogs/1031)
   app.post('/api/ptero/logs/sync', async (req, res) => {
-    const { panelUrl, apiKey, serverId, port = '1031' } = req.body;
+    const { panelUrl, apiKey, serverId } = resolvePteroConfig(req.body || {});
+    const { port = '1031' } = req.body || {};
     if (!panelUrl || !apiKey || !serverId) {
       return res.status(400).json({ error: 'Clé API Pterodactyl requise pour lire les fichiers de logs du conteneur.' });
     }

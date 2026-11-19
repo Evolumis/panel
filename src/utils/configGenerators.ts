@@ -628,20 +628,24 @@ fi
 export PATH="/mnt/server/lumishost-suite/node/bin:$PATH"
 
 # 1. Installation SteamCMD & Serveur Dedie SCP:SL (AppID 996560)
-cd /tmp
-mkdir -p /mnt/server/steamcmd
-curl -sSL -o steamcmd.tar.gz https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
-tar -xzf steamcmd.tar.gz -C /mnt/server/steamcmd
-cd /mnt/server/steamcmd
+mkdir -p /tmp/steamcmd /mnt/server/steamapps
+curl -sSL -o /tmp/steamcmd/steamcmd.tar.gz https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
+tar -xzf /tmp/steamcmd/steamcmd.tar.gz -C /tmp/steamcmd
+rm -f /tmp/steamcmd/steamcmd.tar.gz
+rm -rf /mnt/server/steamapps/downloading /mnt/server/steamapps/temp
+chmod -R u+rwX /mnt/server/steamapps 2>/dev/null || true
+cd /tmp/steamcmd
 
-if ! ./steamcmd.sh +@sSteamCmdForcePlatformType linux +force_install_dir /mnt/server +login anonymous +app_info_update 1 +app_update 996560 validate +quit; then
-    echo "--- [LUMISHOST] Retry SteamCMD apres nettoyage du cache appinfo ---"
-    rm -rf /root/Steam/appcache /mnt/server/steamapps/downloading /mnt/server/steamapps/temp /mnt/server/steamapps/appmanifest_996560.acf
-    ./steamcmd.sh +@sSteamCmdForcePlatformType linux +force_install_dir /mnt/server +login anonymous +app_info_update 1 +app_update 996560 validate +quit
+if ! ./steamcmd.sh +force_install_dir /mnt/server +login anonymous +app_update 996560 validate +quit; then
+    echo "--- [LUMISHOST] Retry SteamCMD sans validate apres nettoyage cache ---"
+    rm -rf /root/Steam/appcache /root/.steam/appcache /mnt/server/steamapps/downloading /mnt/server/steamapps/temp
+    chmod -R u+rwX /mnt/server 2>/dev/null || true
+    ./steamcmd.sh +force_install_dir /mnt/server +login anonymous +app_update 996560 +quit || echo "--- [LUMISHOST] ATTENTION: SteamCMD a rencontre une erreur, poursuite de l'installation ---"
 fi
+rm -rf /tmp/steamcmd
 
 cd /mnt/server
-chmod +x /mnt/server/LocalAdmin
+chmod +x /mnt/server/LocalAdmin /mnt/server/SCPSL.x86_64 2>/dev/null || true
 
 # 2. Installation directe et 100% non-interactive de EXILED 9 + LabApi via Exiled.tar.gz
 mkdir -p /mnt/server/.config
@@ -747,7 +751,7 @@ if [ -n "\${WEB_PANEL_GIT_URL}" ]; then
     rm -rf /mnt/server/webpanel
     git clone "\${WEB_PANEL_GIT_URL}" /mnt/server/webpanel || mkdir -p /mnt/server/webpanel
     if [ -f "/mnt/server/webpanel/package.json" ]; then
-        (cd /mnt/server/webpanel && /mnt/server/lumishost-suite/node/bin/npm install && /mnt/server/lumishost-suite/node/bin/npm run build)
+        (cd /mnt/server/webpanel && NODE_ENV=development /mnt/server/lumishost-suite/node/bin/npm install --legacy-peer-deps --no-audit --no-fund && /mnt/server/lumishost-suite/node/bin/npm run build)
     fi
 fi
 

@@ -106,6 +106,7 @@ export default function App() {
   const [pteroUrl, setPteroUrl] = useState('https://panel.lumishost.com');
   const [pteroApiKey, setPteroApiKey] = useState('');
   const [pteroServerId, setPteroServerId] = useState('f8a9c41b');
+  const [pteroEnvConfigured, setPteroEnvConfigured] = useState(false);
   const [discordWebhookUrl, setDiscordWebhookUrl] = useState('');
   const [serverPort, setServerPort] = useState('1031');
 
@@ -118,6 +119,41 @@ export default function App() {
   const [apiStatusMessage, setApiStatusMessage] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSyncingApi, setIsSyncingApi] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.user) setCurrentUser(d.user);
+        if (d.pteroUrl) setPteroUrl(d.pteroUrl);
+        if (d.pteroServerId) setPteroServerId(d.pteroServerId);
+        if (d.pteroConfigured) {
+          setPteroEnvConfigured(true);
+          fetch('/api/ptero/status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              panelUrl: d.pteroUrl || 'https://panel.lumishost.com',
+              serverId: d.pteroServerId || ''
+            })
+          })
+            .then((sr) => sr.json())
+            .then((sd) => {
+              if (sd.connected) {
+                setLiveApiConnected(true);
+                setServerState(sd.state === 'running' ? 'running' : sd.state === 'offline' ? 'offline' : 'restarting');
+                setLiveApiMetrics({
+                  cpuPercent: Number(sd.resources?.cpu_absolute || 0).toFixed(1),
+                  ramGb: ((sd.resources?.memory_bytes || 0) / 1024 ** 3).toFixed(2),
+                  serverTitle: sd.serverName || 'Site-19 SCP Secret Laboratory'
+                });
+              }
+            })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Shared Domain State
   const [staffList, setStaffList] = useState<StaffMember[]>(INITIAL_STAFF);
@@ -234,7 +270,7 @@ export default function App() {
     setApiError(null);
     setApiStatusMessage(null);
 
-    if (!pteroApiKey.trim()) {
+    if (!pteroApiKey.trim() && !pteroEnvConfigured) {
       setApiError(
         'Veuillez renseigner votre Clé API Client Pterodactyl (commençant par ptlc_...) générée dans Account → API Credentials sur LumisHost.'
       );
@@ -292,7 +328,7 @@ export default function App() {
     setApiError(null);
     setApiStatusMessage(null);
 
-    if (!pteroApiKey.trim()) {
+    if (!pteroApiKey.trim() && !pteroEnvConfigured) {
       setApiError(
         'Entrez votre Clé API Client Pterodactyl (ptlc_...) pour écrire automatiquement les fichiers dans /home/container/.config/SCP Secret Laboratory/config/1031/.'
       );
@@ -406,7 +442,7 @@ export default function App() {
       origin.includes('EXILED') || origin.includes('C.A.S.S.I.E.') ? 'exiled' : 'command'
     );
 
-    if (pteroApiKey.trim()) {
+    if (pteroApiKey.trim() || pteroEnvConfigured) {
       try {
         const resp = await fetch('/api/ptero/command', {
           method: 'POST',
@@ -440,7 +476,7 @@ export default function App() {
   };
 
   const handlePowerAction = async (signal: 'start' | 'restart' | 'stop') => {
-    if (pteroApiKey.trim()) {
+    if (pteroApiKey.trim() || pteroEnvConfigured) {
       try {
         const resp = await fetch('/api/ptero/power', {
           method: 'POST',
