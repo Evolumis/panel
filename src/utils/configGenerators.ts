@@ -617,13 +617,15 @@ export function generatePterodactylMegaAllInOneEggJson(
 apt -y update
 apt -y --no-install-recommends install curl lib32gcc-s1 ca-certificates tar xz-utils git
 
-# Installation portable de Node.js 20 LTS dans /mnt/server/lumishost-suite/node (persiste dans steamcmd:dotnet)
+# Installation portable de Node.js 22 LTS dans /mnt/server/lumishost-suite/node (requis par Vite 8 / Rolldown)
 mkdir -p /mnt/server/lumishost-suite/node
-if [ ! -x "/mnt/server/lumishost-suite/node/bin/node" ]; then
-    echo "--- [LUMISHOST] Installation Node.js 20 LTS portable ---"
-    curl -sSL -o /tmp/node20.tar.xz https://nodejs.org/dist/v20.18.0/node-v20.18.0-linux-x64.tar.xz
-    tar -xJf /tmp/node20.tar.xz --strip-components=1 -C /mnt/server/lumishost-suite/node
-    rm -f /tmp/node20.tar.xz
+NODE_VER=$(/mnt/server/lumishost-suite/node/bin/node -v 2>/dev/null || echo "")
+if [ ! -x "/mnt/server/lumishost-suite/node/bin/node" ] || [[ "\${NODE_VER}" != v22.* ]]; then
+    echo "--- [LUMISHOST] Installation Node.js 22.14.0 LTS portable ---"
+    rm -rf /mnt/server/lumishost-suite/node/*
+    curl -sSL -o /tmp/node22.tar.xz https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz
+    tar -xJf /tmp/node22.tar.xz --strip-components=1 -C /mnt/server/lumishost-suite/node
+    rm -f /tmp/node22.tar.xz
 fi
 export PATH="/mnt/server/lumishost-suite/node/bin:$PATH"
 
@@ -751,7 +753,7 @@ if [ -n "\${WEB_PANEL_GIT_URL}" ]; then
     rm -rf /mnt/server/webpanel
     git clone "\${WEB_PANEL_GIT_URL}" /mnt/server/webpanel || mkdir -p /mnt/server/webpanel
     if [ -f "/mnt/server/webpanel/package.json" ]; then
-        (cd /mnt/server/webpanel && NODE_ENV=development /mnt/server/lumishost-suite/node/bin/npm install --legacy-peer-deps --no-audit --no-fund && /mnt/server/lumishost-suite/node/bin/npm run build)
+        (cd /mnt/server/webpanel && rm -f package-lock.json && NODE_ENV=development /mnt/server/lumishost-suite/node/bin/npm install --legacy-peer-deps --include=optional --no-audit --no-fund && /mnt/server/lumishost-suite/node/bin/npm run build)
     fi
 fi
 
