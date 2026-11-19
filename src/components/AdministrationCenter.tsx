@@ -57,6 +57,14 @@ interface AdministrationCenterProps {
   setVipTiers: React.Dispatch<React.SetStateAction<VipTier[]>>;
   onExecutePteroCommand: (cmd: string, origin?: string) => void;
   onPushAllConfigsToPterodactyl: () => void;
+  onGrantInGameRole?: (
+    targetId: string,
+    roleId: string,
+    playerName: string,
+    nextStaffList?: StaffMember[],
+    nextVipTiers?: VipTier[],
+    nextPanelRoleMatrix?: WebPanelRolePermissionMatrix[]
+  ) => Promise<void> | void;
   serverPort?: string;
 }
 
@@ -80,6 +88,7 @@ export const AdministrationCenter: React.FC<AdministrationCenterProps> = ({
   setVipTiers,
   onExecutePteroCommand,
   onPushAllConfigsToPterodactyl,
+  onGrantInGameRole,
   serverPort = '1031'
 }) => {
   const [adminSubTab, setAdminSubTab] = useState<'vip-loadouts' | 'staff-roles' | 'panel-permissions'>('staff-roles');
@@ -120,6 +129,11 @@ export const AdministrationCenter: React.FC<AdministrationCenterProps> = ({
   const [newStaffSteamId, setNewStaffSteamId] = useState('');
   const [newStaffDiscordTag, setNewStaffDiscordTag] = useState('');
   const [newStaffPanelRole, setNewStaffPanelRole] = useState<WebPanelRole>('moderator');
+
+  // Quick Direct In-Game Grant State
+  const [quickGrantTarget, setQuickGrantTarget] = useState('76561199376552343@steam');
+  const [quickGrantName, setQuickGrantName] = useState('evolumis');
+  const [quickGrantRole, setQuickGrantRole] = useState('owner');
 
   const selectedVipTier = vipTiers.find((t) => t.id === selectedVipTierId) || vipTiers[0];
   const selectedStaffRole =
@@ -233,29 +247,33 @@ export const AdministrationCenter: React.FC<AdministrationCenterProps> = ({
   const handleAssignVipPlayer = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedVipTier || !assignPlayerName.trim() || !assignPlayerSteamId.trim()) return;
-    const formattedSteam = assignPlayerSteamId.includes('@steam')
-      ? assignPlayerSteamId.trim()
-      : `${assignPlayerSteamId.trim()}@steam`;
+    const raw = assignPlayerSteamId.trim();
+    const formattedSteam = raw.includes('@') || /^\d{1,4}$/.test(raw) ? raw : `${raw}@steam`;
 
-    setVipTiers((prev) =>
-      prev.map((t) =>
-        t.id === selectedVipTier.id
-          ? {
-              ...t,
-              assignedPlayers: [
-                ...t.assignedPlayers,
-                {
-                  name: assignPlayerName.trim(),
-                  steamId: formattedSteam,
-                  expiresAt: '2026-12-31'
-                }
-              ]
-            }
-          : t
-      )
+    const nextVipTiers = vipTiers.map((t) =>
+      t.id === selectedVipTier.id
+        ? {
+            ...t,
+            assignedPlayers: [
+              ...t.assignedPlayers.filter(
+                (p) => p.steamId.toLowerCase() !== formattedSteam.toLowerCase()
+              ),
+              {
+                name: assignPlayerName.trim(),
+                steamId: formattedSteam,
+                expiresAt: '2026-12-31'
+              }
+            ]
+          }
+        : t
     );
 
-    onExecutePteroCommand(`setgroup ${formattedSteam} ${selectedVipTier.id}`, 'ADMIN VIP');
+    setVipTiers(nextVipTiers);
+    if (onGrantInGameRole) {
+      onGrantInGameRole(formattedSteam, selectedVipTier.id, assignPlayerName.trim(), staffList, nextVipTiers);
+    } else {
+      onExecutePteroCommand(`setgroup ${formattedSteam} ${selectedVipTier.id}`, 'ADMIN VIP');
+    }
     setAssignPlayerName('');
     setAssignPlayerSteamId('');
   };
@@ -479,36 +497,35 @@ export const AdministrationCenter: React.FC<AdministrationCenterProps> = ({
     const roleMeta = panelRoleMatrix.find((r) => r.roleId === nextRole);
     const raRoleId = nextRole === 'founder' ? 'owner' : nextRole;
 
-    setStaffList((prev) =>
-      prev.map((s) =>
-        s.id === staffId
-          ? {
-              ...s,
-              panelRole: nextRole,
-              roleId: raRoleId,
-              badgeText: roleMeta ? roleMeta.badgeText : s.badgeText,
-              badgeColor: roleMeta ? roleMeta.badgeColorId : s.badgeColor,
-              permissions: roleMeta ? roleMeta.raPermissions : s.permissions
-            }
-          : s
-      )
+    const nextStaffList = staffList.map((s) =>
+      s.id === staffId
+        ? {
+            ...s,
+            panelRole: nextRole,
+            roleId: raRoleId,
+            badgeText: roleMeta ? roleMeta.badgeText : s.badgeText,
+            badgeColor: roleMeta ? roleMeta.badgeColorId : s.badgeColor,
+            permissions: roleMeta ? roleMeta.raPermissions : s.permissions
+          }
+        : s
     );
+    setStaffList(nextStaffList);
 
-    const target = staffList.find((s) => s.id === staffId);
+    const target = nextStaffList.find((s) => s.id === staffId);
     if (target) {
-      onExecutePteroCommand(
-        `setgroup ${target.steamId} ${raRoleId}`,
-        'ADMIN PERMS'
-      );
+      if (onGrantInGameRole) {
+        onGrantInGameRole(target.steamId || target.username, raRoleId, target.username, nextStaffList, vipTiers);
+      } else {
+        onExecutePteroCommand(`setgroup ${target.steamId} ${raRoleId}`, 'ADMIN PERMS');
+      }
     }
   };
 
   const handleAddStaffMember = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStaffName.trim() || !newStaffSteamId.trim()) return;
-    const formattedSteam = newStaffSteamId.includes('@steam')
-      ? newStaffSteamId.trim()
-      : `${newStaffSteamId.trim()}@steam`;
+    const raw = newStaffSteamId.trim();
+    const formattedSteam = raw.includes('@') || /^\d{1,4}$/.test(raw) ? raw : `${raw}@steam`;
 
     const roleMeta =
       panelRoleMatrix.find((r) => r.roleId === newStaffPanelRole) || panelRoleMatrix[0];
@@ -519,7 +536,7 @@ export const AdministrationCenter: React.FC<AdministrationCenterProps> = ({
       username: newStaffName.trim(),
       steamId: formattedSteam,
       discordTag: newStaffDiscordTag.trim() || newStaffName.trim().toLowerCase(),
-      discordId: `${Math.floor(100000000000000000 + Math.random() * 900000000000000000)}`,
+      discordId: '985589556655054858',
       roleId: raRoleId,
       panelRole: newStaffPanelRole,
       badgeText: roleMeta.badgeText,
@@ -528,11 +545,80 @@ export const AdministrationCenter: React.FC<AdministrationCenterProps> = ({
       addedAt: new Date().toISOString().slice(0, 10)
     };
 
-    setStaffList((prev) => [...prev, created]);
-    onExecutePteroCommand(`setgroup ${formattedSteam} ${created.roleId}`, 'ADMIN STAFF');
+    const nextStaffList = [
+      ...staffList.filter((s) => s.steamId.toLowerCase() !== formattedSteam.toLowerCase()),
+      created
+    ];
+    setStaffList(nextStaffList);
+    if (onGrantInGameRole) {
+      onGrantInGameRole(formattedSteam, created.roleId, created.username, nextStaffList, vipTiers);
+    } else {
+      onExecutePteroCommand(`setgroup ${formattedSteam} ${created.roleId}`, 'ADMIN STAFF');
+    }
     setNewStaffName('');
     setNewStaffSteamId('');
     setNewStaffDiscordTag('');
+  };
+
+  const handleQuickDirectGrant = (e: React.FormEvent) => {
+    e.preventDefault();
+    const raw = quickGrantTarget.trim();
+    if (!raw) return;
+    const formatted = raw.includes('@') || /^\d{1,4}$/.test(raw) ? raw : `${raw}@steam`;
+    const isVip = vipTiers.some((t) => t.id === quickGrantRole);
+    const label = quickGrantName.trim() || formatted;
+
+    if (isVip) {
+      const nextVipTiers = vipTiers.map((t) =>
+        t.id === quickGrantRole
+          ? {
+              ...t,
+              assignedPlayers: formatted.includes('@')
+                ? [
+                    ...t.assignedPlayers.filter(
+                      (p) => p.steamId.toLowerCase() !== formatted.toLowerCase()
+                    ),
+                    { name: label, steamId: formatted, expiresAt: '2026-12-31' }
+                  ]
+                : t.assignedPlayers
+            }
+          : t
+      );
+      setVipTiers(nextVipTiers);
+      if (onGrantInGameRole) {
+        onGrantInGameRole(formatted, quickGrantRole, label, staffList, nextVipTiers);
+      }
+      return;
+    }
+
+    const panelRoleKey = quickGrantRole === 'owner' ? 'founder' : quickGrantRole;
+    const roleMeta = panelRoleMatrix.find(
+      (r) => r.roleId === panelRoleKey || r.roleId === quickGrantRole
+    );
+    const nextStaffList = formatted.includes('@')
+      ? [
+          ...staffList.filter((s) => s.steamId.toLowerCase() !== formatted.toLowerCase()),
+          {
+            id: `st-${Date.now()}`,
+            username: label,
+            steamId: formatted,
+            discordTag: label.toLowerCase(),
+            discordId: '985589556655054858',
+            roleId: quickGrantRole,
+            panelRole: panelRoleKey,
+            badgeText: roleMeta ? roleMeta.badgeText : quickGrantRole.toUpperCase(),
+            badgeColor: roleMeta ? roleMeta.badgeColorId : 'crimson',
+            permissions: roleMeta ? roleMeta.raPermissions : [],
+            addedAt: new Date().toISOString().slice(0, 10)
+          }
+        ]
+      : staffList;
+    setStaffList(nextStaffList);
+    if (onGrantInGameRole) {
+      onGrantInGameRole(formatted, quickGrantRole, label, nextStaffList, vipTiers);
+    } else {
+      onExecutePteroCommand(`setgroup ${formatted} ${quickGrantRole}`, 'REMOTEADMIN');
+    }
   };
 
   const vipYamlPreview = generateVipAdvantagesYaml(vipTiers);
@@ -644,6 +730,61 @@ export const AdministrationCenter: React.FC<AdministrationCenterProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Direct 1-Click Grant Permissions / Tag In-Game Bar */}
+        <form
+          onSubmit={handleQuickDirectGrant}
+          className="pt-4 border-t border-slate-800 grid grid-cols-1 md:grid-cols-12 gap-2.5 items-center"
+        >
+          <div className="md:col-span-3">
+            <input
+              type="text"
+              value={quickGrantTarget}
+              onChange={(e) => setQuickGrantTarget(e.target.value)}
+              placeholder="SteamID64 (@steam) ou ID en jeu (ex: 1)"
+              className="w-full px-3 py-2 text-xs font-mono rounded-lg bg-slate-950 border border-slate-800 text-amber-300"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <input
+              type="text"
+              value={quickGrantName}
+              onChange={(e) => setQuickGrantName(e.target.value)}
+              placeholder="Pseudo (ex: evolumis)"
+              className="w-full px-3 py-2 text-xs rounded-lg bg-slate-950 border border-slate-800 text-white"
+            />
+          </div>
+          <div className="md:col-span-4">
+            <select
+              value={quickGrantRole}
+              onChange={(e) => setQuickGrantRole(e.target.value)}
+              className="w-full px-3 py-2 text-xs font-semibold rounded-lg bg-slate-950 border border-slate-800 text-white"
+            >
+              {panelRoleMatrix.map((roleOpt) => {
+                const raKey = roleOpt.roleId === 'founder' ? 'owner' : roleOpt.roleId;
+                return (
+                  <option key={roleOpt.roleId} value={raKey}>
+                    Staff : {raKey} ({roleOpt.badgeText})
+                  </option>
+                );
+              })}
+              {vipTiers.map((tier) => (
+                <option key={tier.id} value={tier.id}>
+                  VIP : {tier.id} ({tier.badgeText})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="md:col-span-3 flex items-center gap-2">
+            <button
+              type="submit"
+              className="w-full px-3.5 py-2 text-xs font-bold rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <UploadCloud className="w-3.5 h-3.5" />
+              Appliquer Perm &amp; Tag En Jeu
+            </button>
+          </div>
+        </form>
       </div>
 
       {/* ==================================================================== */}
@@ -853,7 +994,7 @@ export const AdministrationCenter: React.FC<AdministrationCenterProps> = ({
                   type="button"
                   onClick={() => {
                     onPushAllConfigsToPterodactyl();
-                    onExecutePteroCommand('reload remoteadmin', 'ADMIN ROLES SYNC');
+                    onExecutePteroCommand('config reload', 'ADMIN ROLES SYNC');
                   }}
                   className="px-3.5 py-2 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
                 >
@@ -1458,7 +1599,7 @@ export const AdministrationCenter: React.FC<AdministrationCenterProps> = ({
                   onClick={() => {
                     onPushAllConfigsToPterodactyl();
                     onExecutePteroCommand(
-                      `reload configs`,
+                      'config reload',
                       'ADMIN VIP SYNC'
                     );
                   }}

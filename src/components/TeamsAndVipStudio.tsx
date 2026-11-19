@@ -29,6 +29,12 @@ interface TeamsAndVipStudioProps {
   setVipTiers: React.Dispatch<React.SetStateAction<VipTier[]>>;
   staffList: StaffMember[];
   onExecutePteroCommand: (cmd: string, origin?: string) => void;
+  onGrantInGameRole?: (
+    targetId: string,
+    roleId: string,
+    playerName: string,
+    nextVipTiers: VipTier[]
+  ) => Promise<void> | void;
 }
 
 export const TeamsAndVipStudio: React.FC<TeamsAndVipStudioProps> = ({
@@ -37,7 +43,8 @@ export const TeamsAndVipStudio: React.FC<TeamsAndVipStudioProps> = ({
   vipTiers,
   setVipTiers,
   staffList,
-  onExecutePteroCommand
+  onExecutePteroCommand,
+  onGrantInGameRole
 }) => {
   const [activeMode, setActiveMode] = useState<'teams' | 'vip'>('teams');
 
@@ -154,34 +161,38 @@ export const TeamsAndVipStudio: React.FC<TeamsAndVipStudioProps> = ({
 
     setVipTiers((prev) => [...prev, newTier]);
     setSelectedVipTierId(newTier.id);
-    onExecutePteroCommand(`reload remoteadmin`, 'REMOTEADMIN');
+    onExecutePteroCommand('config reload', 'REMOTEADMIN');
   };
 
   const handleAssignVipPlayer = (e: React.FormEvent) => {
     e.preventDefault();
     if (!playerVipName.trim() || !playerVipSteam.trim()) return;
-    const formattedSteam = playerVipSteam.includes('@')
-      ? playerVipSteam.trim()
-      : `${playerVipSteam.trim()}@steam`;
+    const raw = playerVipSteam.trim();
+    const formattedSteam = raw.includes('@') || /^\d{1,4}$/.test(raw) ? raw : `${raw}@steam`;
 
-    setVipTiers((prev) =>
-      prev.map((tier) =>
-        tier.id === selectedVipTierId
-          ? {
-              ...tier,
-              assignedPlayers: [
-                ...tier.assignedPlayers,
-                {
-                  name: playerVipName.trim(),
-                  steamId: formattedSteam,
-                  expiresAt: '2026-12-31'
-                }
-              ]
-            }
-          : tier
-      )
+    const nextVipTiers = vipTiers.map((tier) =>
+      tier.id === selectedVipTierId
+        ? {
+            ...tier,
+            assignedPlayers: [
+              ...tier.assignedPlayers.filter(
+                (p) => p.steamId.toLowerCase() !== formattedSteam.toLowerCase()
+              ),
+              {
+                name: playerVipName.trim(),
+                steamId: formattedSteam,
+                expiresAt: '2026-12-31'
+              }
+            ]
+          }
+        : tier
     );
-    onExecutePteroCommand(`setgroup ${formattedSteam} ${selectedVipTierId}`, 'VIP MANAGER');
+    setVipTiers(nextVipTiers);
+    if (onGrantInGameRole) {
+      onGrantInGameRole(formattedSteam, selectedVipTierId, playerVipName.trim(), nextVipTiers);
+    } else {
+      onExecutePteroCommand(`setgroup ${formattedSteam} ${selectedVipTierId}`, 'VIP MANAGER');
+    }
     setPlayerVipName('');
     setPlayerVipSteam('');
   };

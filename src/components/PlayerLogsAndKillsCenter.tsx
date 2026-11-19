@@ -66,6 +66,20 @@ interface PlayerLogsAndKillsCenterProps {
   pteroServerId: string;
   serverPort: string;
   onExecutePteroCommand: (cmd: string, origin?: string) => void;
+  onExecuteSanction?: (params: {
+    type: 'BAN' | 'KICK' | 'WARN' | 'MUTE' | 'UNBAN';
+    targetName: string;
+    targetSteamId: string;
+    playerId?: number | string;
+    duration?: string;
+    reason: string;
+  }) => Promise<void> | void;
+  onGrantInGameRole?: (
+    targetId: string,
+    roleId: string,
+    playerName: string,
+    nextStaffList: StaffMember[]
+  ) => Promise<void> | void;
 }
 
 const INITIAL_LOGS: KillAndPlayerLog[] = [];
@@ -82,7 +96,9 @@ export const PlayerLogsAndKillsCenter: React.FC<PlayerLogsAndKillsCenterProps> =
   pteroApiKey,
   pteroServerId,
   serverPort,
-  onExecutePteroCommand
+  onExecutePteroCommand,
+  onExecuteSanction,
+  onGrantInGameRole
 }) => {
   const [subView, setSubView] = useState<
     'player-profiles' | 'killfeed' | 'all-logs' | 'bans-staff' | 'raw-ptero'
@@ -210,7 +226,12 @@ export const PlayerLogsAndKillsCenter: React.FC<PlayerLogsAndKillsCenterProps> =
 
       const realProfiles = Array.from(profileMap.values());
       if (realProfiles.length > 0) {
-        setProfiles(realProfiles);
+        setProfiles((prev) => {
+          const merged = new Map<string, PlayerProfileSummary>();
+          prev.forEach((p) => merged.set(p.steamId.toLowerCase(), p));
+          realProfiles.forEach((p) => merged.set(p.steamId.toLowerCase(), p));
+          return Array.from(merged.values());
+        });
         setSelectedProfile((prev) => prev || realProfiles[0]);
       }
     } catch {
@@ -220,7 +241,8 @@ export const PlayerLogsAndKillsCenter: React.FC<PlayerLogsAndKillsCenterProps> =
 
   useEffect(() => {
     loadRealTelemetry();
-  }, []);
+    handleSyncLiveLocalAdminLogs();
+  }, [pteroServerId, serverPort]);
 
   const handleLookupOrAddOfflineProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -267,46 +289,38 @@ export const PlayerLogsAndKillsCenter: React.FC<PlayerLogsAndKillsCenterProps> =
     duration = '7 jours',
     isOfflineBan = false
   ) => {
-    const nowTime = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    const nowDate = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
-    const newRecord: SanctionRecord = {
-      id: `SAN-${905 + sanctions.length}`,
-      targetName,
-      targetSteamId,
-      type,
-      reason,
-      duration: type === 'BAN' ? duration : type === 'KICK' ? 'Instantané' : 'Avertissement',
-      moderator: 'Nathaniel Dagenais (Panel Web)',
-      source: 'Panel Pterodactyl',
-      timestamp: `${nowDate} · ${nowTime}`,
-      active: type !== 'KICK'
-    };
-
-    setSanctions((prev) => [newRecord, ...prev]);
-
     const newLog: KillAndPlayerLog = {
       id: `LOG-${Date.now()}`,
       timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
       category: 'SANCTION',
-      killerName: 'Nathaniel Dagenais [Staff]',
+      killerName: 'evolumis [Staff]',
       victimName: targetName,
       victimSteamId: targetSteamId,
-      weapon: `${isOfflineBan ? 'OFFLINE BAN (oban)' : type} (${newRecord.duration})`,
-      zone: 'Panel Modération scpsl.lumishost.com',
-      details: `[SANCTION ${isOfflineBan ? 'OFFLINE BAN' : type}] ${targetName} (${targetSteamId}) sanctionné pour : "${reason}" (${newRecord.duration}).`
+      weapon: `${isOfflineBan ? 'OFFLINE BAN (/oban)' : type} (${type === 'BAN' ? duration : type})`,
+      zone: `play.lumishost.com:${serverPort}`,
+      details: `[SANCTION ${isOfflineBan ? 'OFFLINE BAN' : type}] ${targetName} (${targetSteamId}) sanctionné pour : "${reason}" (${duration}).`
     };
     setLogs((prev) => [newLog, ...prev]);
 
-    const pteroCmd =
-      type === 'BAN'
-        ? isOfflineBan
-          ? `oban ${targetSteamId} "${duration}" "${reason}"`
-          : `ban ${targetSteamId} "${duration}" "${reason}"`
-        : type === 'KICK'
-        ? `kick ${targetSteamId} "${reason}"`
-        : `bc 8 <color=#FAFF86><b>[WARN STAFF]</b></color> ${targetName} : ${reason}`;
+    if (onExecuteSanction) {
+      onExecuteSanction({
+        type,
+        targetName,
+        targetSteamId,
+        duration: type === 'BAN' ? duration : undefined,
+        reason
+      });
+      return;
+    }
 
-    onExecutePteroCommand(pteroCmd, isOfflineBan ? 'OFFLINE BAN (OBAN)' : `MODÉRATION ${type}`);
+    onExecutePteroCommand(
+      type === 'BAN'
+        ? `/oban ${targetSteamId} 7d ${reason}`
+        : type === 'KICK'
+        ? `/kick ${targetSteamId} ${reason}`
+        : `/bc 8 <color=#FAFF86><b>[WARN STAFF]</b></color> ${targetName} : ${reason}`,
+      `MODÉRATION ${type}`
+    );
   };
 
   const handleSyncLiveLocalAdminLogs = async () => {
@@ -328,41 +342,86 @@ export const PlayerLogsAndKillsCenter: React.FC<PlayerLogsAndKillsCenterProps> =
         setRawLogSyncStatus(
           data.error || 'Connectez votre Clé API Client (ptlc_...) dans l’onglet Développeur pour lire les fichiers de logs en direct.'
         );
-      } else if (Array.isArray(data.lines) && data.lines.length > 0) {
-        setRawPteroLines(data.lines);
-        setRawLogSyncStatus(`Fichier ${data.fileName} synchronisé depuis /home/container/.config/SCP Secret Laboratory/LocalAdminLogs/${serverPort}/`);
-
-        // Extract any real SteamID64 players appearing in live LocalAdmin logs
-        const foundPlayers: PlayerProfileSummary[] = [];
-        data.lines.forEach((line: string) => {
-          const match = line.match(/([^\s(\[]+)\s*\(?(\d{17}@(?:steam|discord))\)?/);
-          if (match) {
-            const steamId = match[2];
-            if (!foundPlayers.some((p) => p.steamId === steamId) && !profiles.some((p) => p.steamId === steamId)) {
-              foundPlayers.push({
-                steamId,
-                username: match[1] || steamId,
-                discordHandle: 'Non lié',
-                isOnline: !line.toLowerCase().includes('disconnected'),
-                currentRole: 'Détecté dans LocalAdminLogs',
-                roleColor: '#38BDF8',
-                kills: 0,
-                deaths: 0,
-                teamkills: 0,
-                playtimeHours: 0,
-                firstJoined: new Date().toLocaleDateString('fr-FR'),
-                lastSeen: line.slice(1, 20) || 'Récent',
-                vipOrStaffTag: 'Joueur Réel'
-              });
-            }
-          }
-        });
-        if (foundPlayers.length > 0) {
-          setProfiles((prev) => [...foundPlayers, ...prev]);
-          setSelectedProfile((prev) => prev || foundPlayers[0]);
-        }
       } else {
-        setRawLogSyncStatus(data.message || 'Logs lus avec succès.');
+        const combinedLines: string[] = [
+          ...(Array.isArray(data.serverLogLines) ? data.serverLogLines : []),
+          ...(Array.isArray(data.lines) ? data.lines : [])
+        ];
+        if (combinedLines.length > 0) {
+          setRawPteroLines(combinedLines.slice(-180));
+        }
+        setRawLogSyncStatus(
+          data.message || `Logs synchronisés (${data.fileName || data.serverLogFile || 'OK'})`
+        );
+
+        // Merge structured gameplay events parsed from ServerLogs & LocalAdminLogs
+        if (Array.isArray(data.parsedEvents) && data.parsedEvents.length > 0) {
+          const parsedMapped: KillAndPlayerLog[] = data.parsedEvents.map(
+            (ev: {
+              id: string;
+              timestamp: string;
+              category: string;
+              killerName?: string;
+              killerSteamId?: string;
+              victimName?: string;
+              victimSteamId?: string;
+              weapon?: string;
+              zone?: string;
+              details: string;
+            }) => ({
+              id: ev.id,
+              timestamp: ev.timestamp,
+              category: (['KILL', 'TEAMKILL', 'CONNECT', 'ADMIN', 'ITEM', 'SANCTION'].includes(ev.category)
+                ? ev.category
+                : 'ADMIN') as KillAndPlayerLog['category'],
+              killerName: ev.killerName,
+              killerSteamId: ev.killerSteamId,
+              killerColor: ev.category === 'TEAMKILL' ? '#FB7185' : '#38BDF8',
+              victimName: ev.victimName,
+              victimSteamId: ev.victimSteamId,
+              victimColor: '#CBD5E1',
+              weapon: ev.weapon,
+              zone: ev.zone,
+              details: ev.details
+            })
+          );
+          setLogs((prev) => {
+            const seen = new Set(prev.map((l) => l.id));
+            const fresh = parsedMapped.filter((l) => !seen.has(l.id));
+            return [...fresh, ...prev].slice(0, 250);
+          });
+        }
+
+        // Merge real players detected from LocalAdminLogs + ServerLogs
+        if (Array.isArray(data.players) && data.players.length > 0) {
+          const parsedProfiles: PlayerProfileSummary[] = data.players.map(
+            (p: { id: number; name: string; steamId: string; role: string; isOnline: boolean; lastSeen: string }) => ({
+              steamId: p.steamId,
+              username: p.name || p.steamId,
+              discordHandle: 'Non lié',
+              isOnline: Boolean(p.isOnline),
+              currentRole: p.isOnline ? `${p.role} (ID #${p.id})` : 'Hors-Ligne',
+              roleColor: p.isOnline ? '#34D399' : '#64748B',
+              kills: 0,
+              deaths: 0,
+              teamkills: 0,
+              playtimeHours: 0,
+              firstJoined: new Date().toLocaleDateString('fr-FR'),
+              lastSeen: p.isOnline ? `En ligne · ${p.lastSeen}` : `Vu à ${p.lastSeen}`,
+              vipOrStaffTag: 'Joueur Réel'
+            })
+          );
+          setProfiles((prev) => {
+            const map = new Map<string, PlayerProfileSummary>();
+            prev.forEach((pr) => map.set(pr.steamId.toLowerCase(), pr));
+            parsedProfiles.forEach((pr) => {
+              const old = map.get(pr.steamId.toLowerCase());
+              map.set(pr.steamId.toLowerCase(), old ? { ...old, ...pr, kills: old.kills, deaths: old.deaths, teamkills: old.teamkills } : pr);
+            });
+            return Array.from(map.values());
+          });
+          setSelectedProfile((prev) => prev || parsedProfiles[0]);
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erreur réseau';
@@ -375,24 +434,33 @@ export const PlayerLogsAndKillsCenter: React.FC<PlayerLogsAndKillsCenterProps> =
   const handleAddModerator = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newModName.trim() || !newModSteam.trim()) return;
-    const formattedSteam = newModSteam.includes('@') ? newModSteam.trim() : `${newModSteam.trim()}@steam`;
+    const raw = newModSteam.trim();
+    const formattedSteam = raw.includes('@') || /^\d{1,4}$/.test(raw) ? raw : `${raw}@steam`;
     const created: StaffMember = {
       id: `st-${Date.now()}`,
       username: newModName.trim(),
       steamId: formattedSteam,
       discordTag: newModDiscord.trim() || newModName.trim().toLowerCase(),
-      discordId: '749201938475610293',
+      discordId: '985589556655054858',
       roleId: newModRole,
       badgeText: newModBadge.trim() || 'MODÉRATEUR',
       badgeColor: newModColor,
       permissions:
         newModRole === 'admin'
-          ? ['KickingAndShortTermBanning', 'BanningUpToDay', 'LongTermBanning', 'ForceclassSelf', 'EventsMode', 'Broadcasting']
+          ? ['KickingAndShortTermBanning', 'BanningUpToDay', 'LongTermBanning', 'ForceclassSelf', 'GivingItems', 'Broadcasting']
           : ['KickingAndShortTermBanning', 'BanningUpToDay', 'Broadcasting'],
-      addedAt: '2026-11-18'
+      addedAt: new Date().toISOString().slice(0, 10)
     };
-    setStaffList((prev) => [...prev, created]);
-    onExecutePteroCommand(`setgroup ${formattedSteam} ${newModRole}`, 'REMOTEADMIN');
+    const nextStaffList = [
+      ...staffList.filter((s) => s.steamId.toLowerCase() !== formattedSteam.toLowerCase()),
+      created
+    ];
+    setStaffList(nextStaffList);
+    if (onGrantInGameRole) {
+      onGrantInGameRole(formattedSteam, newModRole, created.username, nextStaffList);
+    } else {
+      onExecutePteroCommand(`setgroup ${formattedSteam} ${newModRole}`, 'REMOTEADMIN');
+    }
     setNewModName('');
     setNewModSteam('');
     setNewModDiscord('');
@@ -713,7 +781,14 @@ export const PlayerLogsAndKillsCenter: React.FC<PlayerLogsAndKillsCenterProps> =
                   )}
                   <button
                     onClick={() =>
-                      onExecutePteroCommand(`unban ${selectedProfile.steamId}`, 'REMOTEADMIN')
+                      onExecuteSanction
+                        ? onExecuteSanction({
+                            type: 'UNBAN',
+                            targetName: selectedProfile.username,
+                            targetSteamId: selectedProfile.steamId,
+                            reason: 'Débannissement depuis le dossier joueur'
+                          })
+                        : onExecutePteroCommand(`/unban id ${selectedProfile.steamId}`, 'REMOTEADMIN')
                     }
                     className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 transition-colors"
                   >
@@ -1164,7 +1239,16 @@ export const PlayerLogsAndKillsCenter: React.FC<PlayerLogsAndKillsCenterProps> =
                                   item.id === s.id ? { ...item, active: false } : item
                                 )
                               );
-                              onExecutePteroCommand(`unban ${s.targetSteamId}`, 'REMOTEADMIN');
+                              if (onExecuteSanction) {
+                                onExecuteSanction({
+                                  type: 'UNBAN',
+                                  targetName: s.targetName,
+                                  targetSteamId: s.targetSteamId,
+                                  reason: 'Sanction révoquée depuis le registre'
+                                });
+                              } else {
+                                onExecutePteroCommand(`/unban id ${s.targetSteamId}`, 'REMOTEADMIN');
+                              }
                             }}
                             className="px-2.5 py-1 text-xs font-medium rounded bg-slate-800 hover:bg-emerald-500/20 text-slate-200 hover:text-emerald-300 border border-slate-700 transition-colors inline-flex items-center gap-1"
                           >

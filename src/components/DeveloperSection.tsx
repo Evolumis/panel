@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Terminal,
   Code2,
@@ -18,7 +18,8 @@ import {
   Server,
   Globe,
   CheckCircle2,
-  AlertTriangle
+  AlertTriangle,
+  Database
 } from 'lucide-react';
 import {
   CustomTeam,
@@ -96,7 +97,7 @@ namespace LumisHostTelemetry
     public class LumisHostTelemetryPlugin : Plugin
     {
         public override string Name => "LumisHostWebPanelBridge";
-        public override string Author => "Nathaniel Dagenais - LumisHost";
+        public override string Author => "evolumis - LumisHost";
         public override string Description => "Synchronise Kills, Teamkills, Logs Joueurs et Sanctions avec scpsl.lumishost.com";
         public override Version Version => new Version(1, 4, 2);
         public override Version RequiredApiVersion => new Version(1, 0, 0);
@@ -238,6 +239,31 @@ export const DeveloperSection: React.FC<DeveloperSectionProps> = ({
     'csharp-plugin' | 'exiled-staff-plugin' | 'discord-bot'
   >('csharp-plugin');
   const [copiedCode, setCopiedCode] = useState(false);
+  const [mysqlStatus, setMysqlStatus] = useState<{
+    mysqlConfigured: boolean;
+    mysqlConnected: boolean;
+    mysqlHost: string;
+    mysqlDatabase: string;
+    localDiskFile: string;
+    error: string | null;
+  } | null>(null);
+  const [testingMysql, setTestingMysql] = useState(false);
+
+  const checkMysqlStatus = async () => {
+    setTestingMysql(true);
+    try {
+      const r = await fetch('/api/db/status');
+      if (r.ok) setMysqlStatus(await r.json());
+    } catch {
+      // ignore error
+    } finally {
+      setTestingMysql(false);
+    }
+  };
+
+  useEffect(() => {
+    checkMysqlStatus();
+  }, []);
 
   // Webhook Tester state
   const [testPayloadJson, setTestPayloadJson] = useState(
@@ -391,7 +417,7 @@ export const DeveloperSection: React.FC<DeveloperSectionProps> = ({
               className="px-4 py-2.5 text-xs font-bold rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors whitespace-nowrap shrink-0 flex items-center gap-1.5"
             >
               <Download className="w-4 h-4" />
-              Télécharger le Mega Egg Tout-En-Un v2.3.0 (.json)
+              Télécharger le Mega Egg Tout-En-Un v2.6.0 (.json)
             </button>
           </div>
         </div>
@@ -654,6 +680,44 @@ export const DeveloperSection: React.FC<DeveloperSectionProps> = ({
                 POST /files/write
               </button>
             </div>
+
+            {/* MySQL Persistence Diagnostics Card */}
+            <div className="pt-4 border-t border-slate-800 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Database className="w-4 h-4 text-emerald-400" />
+                  <span className="text-xs font-semibold text-white">
+                    Base de Données MySQL (Pterodactyl) &amp; Sauvegarde
+                  </span>
+                </div>
+                <span
+                  className={`text-[11px] font-mono font-bold ${
+                    mysqlStatus?.mysqlConnected ? 'text-emerald-400' : 'text-amber-300'
+                  }`}
+                >
+                  {mysqlStatus?.mysqlConnected ? 'MYSQL CONNECTÉ' : 'DISQUE JSON ACTIF'}
+                </span>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-mono space-y-1 text-slate-300">
+                <div>Hôte : <span className="text-cyan-300">{mysqlStatus?.mysqlHost || 'Non configuré'}</span></div>
+                <div>Base : <span className="text-cyan-300">{mysqlStatus?.mysqlDatabase || 'Non configurée'}</span></div>
+                <div>Tables : <span className="text-emerald-400">lumishost_kv, lumishost_sanctions, lumishost_telemetry, lumishost_players</span></div>
+                {mysqlStatus?.error && (
+                  <div className="text-rose-400">Erreur MySQL : {mysqlStatus.error}</div>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Renseignez <span className="font-mono text-white">MYSQL_HOST</span>, <span className="font-mono text-white">MYSQL_PORT</span>, <span className="font-mono text-white">MYSQL_DATABASE</span>, <span className="font-mono text-white">MYSQL_USER</span> et <span className="font-mono text-white">MYSQL_PASSWORD</span> dans Pterodactyl → Startup (onglet Databases).
+              </p>
+              <button
+                type="button"
+                disabled={testingMysql}
+                onClick={checkMysqlStatus}
+                className="w-full py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-slate-700 transition-colors"
+              >
+                {testingMysql ? 'Vérification MySQL...' : 'Tester la Connexion MySQL'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -663,14 +727,14 @@ export const DeveloperSection: React.FC<DeveloperSectionProps> = ({
         <div className="p-5 rounded-xl border border-slate-800 bg-slate-900 space-y-4">
           <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-1">
             <div className="text-sm font-bold text-amber-300">
-              ★ EGG UNIQUE LUMISHOST v2.3.0 (`egg-lumishost-mega-tout-en-un.json`) — UTILISEZ CELUI-CI UNIQUEMENT
+              ★ EGG UNIQUE LUMISHOST v2.6.0 (`egg-lumishost-mega-tout-en-un.json`) — UTILISEZ CELUI-CI UNIQUEMENT
             </div>
             <p className="text-xs text-slate-300 leading-relaxed">
               Téléchargez-le avec le bouton jaune ci-dessus puis importez-le dans <span className="font-mono text-white">Admin → Nests → Update Egg</span> sur LumisHost (puis <span className="font-mono text-white">Settings → Reinstall Server</span>). Il inclut :
               <strong className="text-emerald-300"> 1. SCP:SL v14.2.9 + LabApi + EXILED 9.15.3</strong> ·
-              <strong className="text-cyan-300"> 2. Configs Staff/Items/VIP</strong> ·
-              <strong className="text-indigo-300"> 3. Bot Discord v14</strong> ·
-              <strong className="text-amber-300"> 4. Panel Web v2.3.0 authentifié (`:1032`)</strong>.
+              <strong className="text-cyan-300"> 2. Persistance MySQL + Disque</strong> ·
+              <strong className="text-indigo-300"> 3. Bot Discord v14 (Embeds, Statut Live, Logs Auto, 18 Commandes)</strong> ·
+              <strong className="text-amber-300"> 4. Panel Web v2.6.0 avec préfixe `/` RemoteAdmin &amp; Joueurs Live (`:1032`)</strong>.
             </p>
           </div>
 

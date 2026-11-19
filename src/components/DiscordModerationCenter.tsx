@@ -39,8 +39,8 @@ const AVAILABLE_PERMISSIONS = [
   { id: 'LongTermBanning', label: 'Ban Longue Durée / Perm' },
   { id: 'Broadcasting', label: 'Annonces Broadcast (BC)' },
   { id: 'ForceclassSelf', label: 'Forceclass Soi-Même' },
-  { id: 'GiveItems', label: 'Give Items (Inventaire)' },
-  { id: 'EventsMode', label: 'Accès Mode Event' },
+  { id: 'GivingItems', label: 'Give Items (Inventaire)' },
+  { id: 'Overwatch', label: 'Mode Overwatch' },
   { id: 'ServerConsoleCommands', label: 'Commandes Console Serveur' }
 ];
 
@@ -157,9 +157,9 @@ export const DiscordModerationCenter: React.FC<DiscordModerationCenterProps> = (
         badgeColor: chosen.color,
         permissions:
           cmdModRole === 'admin'
-            ? ['KickingAndShortTermBanning', 'BanningUpToDay', 'LongTermBanning', 'Broadcasting', 'EventsMode', 'ForceclassSelf']
+            ? ['KickingAndShortTermBanning', 'BanningUpToDay', 'LongTermBanning', 'Broadcasting', 'GivingItems', 'ForceclassSelf']
             : ['KickingAndShortTermBanning', 'BanningUpToDay', 'Broadcasting'],
-        addedAt: '2026-11-18'
+        addedAt: new Date().toISOString().slice(0, 10)
       };
       setStaffList((prev) => [...prev, newStaff]);
       onExecutePteroCommand(`setgroup ${formattedSteam} ${cmdModRole}`, 'BOT DISCORD');

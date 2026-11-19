@@ -112,7 +112,7 @@ export const DiscordAuthAndDomainModal: React.FC<DiscordAuthAndDomainModalProps>
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username: 'Nathaniel Dagenais',
+        username: 'evolumis',
         discordId: '985589556655054858',
         roleLabel: 'Fondateur O5 · LumisHost (scpsl.lumishost.com)'
       })
@@ -264,7 +264,7 @@ export const DiscordAuthAndDomainModal: React.FC<DiscordAuthAndDomainModalProps>
                     className="w-full px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors flex items-center justify-center gap-2"
                   >
                     <Lock className="w-3.5 h-3.5 text-amber-400" />
-                    Connexion Staff Rapide (Nathaniel Dagenais · Fondateur O5)
+                    Connexion Staff Rapide (evolumis · Fondateur O5)
                   </button>
                 </div>
               </div>

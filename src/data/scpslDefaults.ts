@@ -137,7 +137,7 @@ export const REMOTEADMIN_PERMISSION_FLAGS: { id: string; label: string }[] = [
   { id: 'ForceclassSelf', label: 'Forceclass sur soi' },
   { id: 'ForceclassToSpectator', label: 'Forcer en Spectateur' },
   { id: 'ForceclassWithoutRestrictions', label: 'Forceclass tous joueurs' },
-  { id: 'GiveItems', label: 'Donner Items (Give)' },
+  { id: 'GivingItems', label: 'Donner Items (Give)' },
   { id: 'WarheadEvents', label: 'Contrôle Ogive Alpha' },
   { id: 'RespawnEvents', label: 'Spawn Vagues MTF / Chaos' },
   { id: 'RoundEvents', label: 'Restart / Lock Manche' },
@@ -153,7 +153,10 @@ export const REMOTEADMIN_PERMISSION_FLAGS: { id: string; label: string }[] = [
   { id: 'PlayerSensitiveDataAccess', label: 'Voir IP / SteamID' },
   { id: 'Noclip', label: 'Noclip (Vol Staff)' },
   { id: 'AFKImmunity', label: 'Immunité Anti-AFK' },
-  { id: 'EventsMode', label: 'Mode Event & Mutateurs' }
+  { id: 'Overwatch', label: 'Mode Overwatch (Spectate)' },
+  { id: 'Effects', label: 'Effets Joueurs' },
+  { id: 'AdminChat', label: 'Chat Admin' },
+  { id: 'Announcer', label: 'Annonces C.A.S.S.I.E.' }
 ];
 
 export type WebPanelRole = string;
@@ -236,7 +239,7 @@ export const INITIAL_PANEL_ROLE_PERMISSIONS: WebPanelRolePermissionMatrix[] = [
       'ForceclassSelf',
       'ForceclassToSpectator',
       'ForceclassWithoutRestrictions',
-      'GiveItems',
+      'GivingItems',
       'WarheadEvents',
       'RespawnEvents',
       'RoundEvents',
@@ -250,7 +253,10 @@ export const INITIAL_PANEL_ROLE_PERMISSIONS: WebPanelRolePermissionMatrix[] = [
       'PlayerSensitiveDataAccess',
       'Noclip',
       'AFKImmunity',
-      'EventsMode'
+      'Overwatch',
+      'Effects',
+      'AdminChat',
+      'Announcer'
     ],
     staffItems: ['KeycardO5', 'GunCOM45', 'ParticleDisruptor', 'SCP268', 'SCP1344', 'SCP500', 'Radio'],
     autoEquipOnSpawn: true,
@@ -283,7 +289,7 @@ export const INITIAL_PANEL_ROLE_PERMISSIONS: WebPanelRolePermissionMatrix[] = [
       'ForceclassSelf',
       'ForceclassToSpectator',
       'ForceclassWithoutRestrictions',
-      'GiveItems',
+      'GivingItems',
       'WarheadEvents',
       'RespawnEvents',
       'RoundEvents',
@@ -294,7 +300,10 @@ export const INITIAL_PANEL_ROLE_PERMISSIONS: WebPanelRolePermissionMatrix[] = [
       'PlayerSensitiveDataAccess',
       'Noclip',
       'AFKImmunity',
-      'EventsMode'
+      'Overwatch',
+      'Effects',
+      'AdminChat',
+      'Announcer'
     ],
     staffItems: ['KeycardO5', 'GunE11SR', 'Jailbird', 'SCP268', 'SCP500', 'ArmorHeavy', 'Radio'],
     autoEquipOnSpawn: true,
@@ -470,15 +479,15 @@ export interface AfficheSection {
 export const INITIAL_STAFF: StaffMember[] = [
   {
     id: 'st-1',
-    username: 'Nathaniel Dagenais [O5-1]',
-    steamId: '',
-    discordTag: 'nathaniel_dagenais',
+    username: 'evolumis [Fondateur O5]',
+    steamId: '76561199376552343@steam',
+    discordTag: 'evolumis',
     discordId: '985589556655054858',
     roleId: 'owner',
     panelRole: 'founder',
     badgeText: 'FONDATEUR O5',
     badgeColor: 'crimson',
-    permissions: ['KickingAndShortTermBanning', 'BanningUpToDay', 'LongTermBanning', 'ForceclassSelf', 'GiveItems', 'EventsMode', 'Broadcasting', 'ServerConsoleCommands', 'PlayerSensitiveDataAccess'],
+    permissions: REMOTEADMIN_PERMISSION_FLAGS.map((p) => p.id),
     addedAt: '2026-11-18'
   }
 ];

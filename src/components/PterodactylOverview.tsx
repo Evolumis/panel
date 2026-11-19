@@ -341,7 +341,7 @@ export const PterodactylOverview: React.FC<PterodactylOverviewProps> = ({
               type="text"
               value={commandInput}
               onChange={(e) => setCommandInput(e.target.value)}
-              placeholder="Entrer une commande serveur (ex: sr, bc 10 Bienvenue, cassie_sl, ban, reload remoteadmin)..."
+              placeholder="Entrer une commande serveur (ex: sr, bc 10 Bienvenue, cassie_sl, ban, config reload)..."
               className="flex-1 px-3.5 py-2.5 text-xs font-mono rounded-lg bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-amber-500"
             />
             <button
@@ -358,7 +358,7 @@ export const PterodactylOverview: React.FC<PterodactylOverviewProps> = ({
             <span className="text-xs text-slate-400">Actions Rapides :</span>
             {[
               { label: 'Restart Manche (sr)', cmd: 'sr' },
-              { label: 'Recharger RemoteAdmin', cmd: 'reload remoteadmin' },
+              { label: 'Recharger Configs', cmd: 'config reload' },
               { label: 'Recharger Plugins EXILED', cmd: 'exiled reload all' },
               { label: 'Déverrouiller Portes', cmd: 'unlock all' },
               { label: 'Lancer Ogive Alpha', cmd: 'warhead start' }

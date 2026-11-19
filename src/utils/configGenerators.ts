@@ -31,13 +31,15 @@ export function generateRemoteAdminConfig(
   const memberLines: string[] = [];
   staffList.forEach((s) => {
     if (s.steamId && s.steamId.trim()) {
-      memberLines.push(` - ${s.steamId.trim()}: ${s.roleId} # ${s.username} (Discord: ${s.discordTag})`);
+      memberLines.push(` # ${s.username} (Discord: ${s.discordTag})`);
+      memberLines.push(` - ${s.steamId.trim()}: ${s.roleId}`);
     }
   });
   vipTiers.forEach((tier) => {
     tier.assignedPlayers.forEach((player) => {
       if (player.steamId && player.steamId.trim()) {
-        memberLines.push(` - ${player.steamId.trim()}: ${tier.id} # VIP: ${player.name} (${tier.name})`);
+        memberLines.push(` # VIP: ${player.name} (${tier.name})`);
+        memberLines.push(` - ${player.steamId.trim()}: ${tier.id}`);
       }
     });
   });
@@ -87,7 +89,7 @@ export function generateRemoteAdminConfig(
     'ForceclassSelf',
     'ForceclassToSpectator',
     'ForceclassWithoutRestrictions',
-    'GiveItems',
+    'GivingItems',
     'WarheadEvents',
     'RespawnEvents',
     'RoundEvents',
@@ -103,7 +105,10 @@ export function generateRemoteAdminConfig(
     'PlayerSensitiveDataAccess',
     'Noclip',
     'AFKImmunity',
-    'EventsMode'
+    'Overwatch',
+    'Effects',
+    'AdminChat',
+    'Announcer'
   ];
 
   const permLines = allPermissions.map((perm) => {
@@ -122,8 +127,7 @@ export function generateRemoteAdminConfig(
 # Chemin Pterodactyl : /home/container/.config/SCP Secret Laboratory/config/1031/config_remoteadmin.txt
 # ====================================================================
 
-Members:
-${memberLines.length > 0 ? memberLines.join('\n') : ' # Ajoutez vos vrais SteamID64 via le Panel Web ou /addmod'}
+${memberLines.length > 0 ? `Members:\n${memberLines.join('\n')}` : 'Members: []'}
 
 enable_staff_access: true
 enable_manager_access: true
@@ -572,7 +576,7 @@ export function generatePterodactylMegaAllInOneEggJson(
   serverNameRich: string,
   pastebinId: string,
   pteroUrl = 'https://panel.lumishost.com',
-  pteroServerId = 'f8a9c41b',
+  pteroServerId = '283ba3e0',
   staffRoles?: WebPanelRolePermissionMatrix[],
   serverPort = '1031'
 ): string {
@@ -691,40 +695,40 @@ mkdir -p "/mnt/server/.config/EXILED/Plugins/dependencies"
 mkdir -p "/mnt/server/lumishost-suite/plugins-src"
 
 # 4. Ecriture automatique de config_gameplay.txt (avec contact_email & Affiche WOW Pastebin)
-cat << 'EOF_GAMEPLAY' > "/mnt/server/.config/SCP Secret Laboratory/config/1031/config_gameplay.txt"
-${gameplayTxt}
-EOF_GAMEPLAY
+cat << 'EOF_GAMEPLAY_GZ' | base64 -d | gunzip > "/mnt/server/.config/SCP Secret Laboratory/config/1031/config_gameplay.txt"
+${toBase64Gzip(gameplayTxt)}
+EOF_GAMEPLAY_GZ
 cp "/mnt/server/.config/SCP Secret Laboratory/config/1031/config_gameplay.txt" "/mnt/server/.config/SCP Secret Laboratory/config/\${ACTIVE_PORT}/config_gameplay.txt" 2>/dev/null || true
 
-# 5. Ecriture automatique de config_remoteadmin.txt (Staff O5, Rôles Customs & Tags VIP)
-cat << 'EOF_RA' > "/mnt/server/.config/SCP Secret Laboratory/config/1031/config_remoteadmin.txt"
-${remoteAdminTxt}
-EOF_RA
+# 5. Ecriture automatique de config_remoteadmin.txt (Staff O5, Roles Customs & Tags VIP)
+cat << 'EOF_RA_GZ' | base64 -d | gunzip > "/mnt/server/.config/SCP Secret Laboratory/config/1031/config_remoteadmin.txt"
+${toBase64Gzip(remoteAdminTxt)}
+EOF_RA_GZ
 cp "/mnt/server/.config/SCP Secret Laboratory/config/1031/config_remoteadmin.txt" "/mnt/server/.config/SCP Secret Laboratory/config/\${ACTIVE_PORT}/config_remoteadmin.txt" 2>/dev/null || true
 
 # 6. Ecriture complete des configurations EXILED 9 ({PORT}-config.yml + permissions.yml + plugins)
-cat << 'EOF_EXILED_MAIN' > "/mnt/server/.config/EXILED/Configs/1031-config.yml"
-${exiledMainConfigYml}
-EOF_EXILED_MAIN
+cat << 'EOF_EXILED_MAIN_GZ' | base64 -d | gunzip > "/mnt/server/.config/EXILED/Configs/1031-config.yml"
+${toBase64Gzip(exiledMainConfigYml)}
+EOF_EXILED_MAIN_GZ
 if [ "\${ACTIVE_PORT}" != "1031" ]; then
     cp -f "/mnt/server/.config/EXILED/Configs/1031-config.yml" "/mnt/server/.config/EXILED/Configs/\${ACTIVE_PORT}-config.yml"
 fi
 
-cat << 'EOF_EXILED_PERMS' > "/mnt/server/.config/EXILED/Configs/permissions.yml"
-${exiledPermissionsYml}
-EOF_EXILED_PERMS
+cat << 'EOF_EXILED_PERMS_GZ' | base64 -d | gunzip > "/mnt/server/.config/EXILED/Configs/permissions.yml"
+${toBase64Gzip(exiledPermissionsYml)}
+EOF_EXILED_PERMS_GZ
 
-cat << 'EOF_TEAMS' > "/mnt/server/.config/EXILED/Configs/CustomTeams.yml"
-${customTeamsYml}
-EOF_TEAMS
+cat << 'EOF_TEAMS_GZ' | base64 -d | gunzip > "/mnt/server/.config/EXILED/Configs/CustomTeams.yml"
+${toBase64Gzip(customTeamsYml)}
+EOF_TEAMS_GZ
 
-cat << 'EOF_VIP' > "/mnt/server/.config/EXILED/Configs/VipAdvantages.yml"
-${vipAdvantagesYml}
-EOF_VIP
+cat << 'EOF_VIP_GZ' | base64 -d | gunzip > "/mnt/server/.config/EXILED/Configs/VipAdvantages.yml"
+${toBase64Gzip(vipAdvantagesYml)}
+EOF_VIP_GZ
 
-cat << 'EOF_STAFF_ITEMS' > "/mnt/server/.config/EXILED/Configs/StaffLoadouts.yml"
-${staffLoadoutsYml}
-EOF_STAFF_ITEMS
+cat << 'EOF_STAFF_ITEMS_GZ' | base64 -d | gunzip > "/mnt/server/.config/EXILED/Configs/StaffLoadouts.yml"
+${toBase64Gzip(staffLoadoutsYml)}
+EOF_STAFF_ITEMS_GZ
 
 # 7. Sauvegarde des sources C# du plugin Auto-Equip Staff EXILED 9 & Bot Discord v14
 cat << 'EOF_PLUGIN_STAFF_GZ' | base64 -d | gunzip > "/mnt/server/lumishost-suite/plugins-src/LumisHostStaffItemsPlugin.cs"
@@ -738,12 +742,13 @@ EOF_BOT_GZ
 cat << 'EOF_PKG' > "/mnt/server/lumishost-suite/package.json"
 {
   "name": "lumishost-scpsl-bot",
-  "version": "2.1.0",
+  "version": "2.6.0",
   "type": "module",
   "dependencies": {
     "axios": "^1.7.7",
     "discord.js": "^14.16.3",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "mysql2": "^3.11.4"
   }
 }
 EOF_PKG
@@ -762,18 +767,19 @@ if [ -n "\${WEB_PANEL_GIT_URL}" ]; then
 fi
 
 if [ -z "\${WEB_PANEL_GIT_URL}" ]; then
-    echo "--- [LUMISHOST] Mise a jour / installation du Panel Web Complet v2.4.0 sur le port 1032 ---"
+    echo "--- [LUMISHOST] Mise a jour / installation du Panel Web Complet v2.6.0 sur le port 1032 ---"
     mkdir -p /mnt/server/webpanel/public
     cat << 'EOF_WP_PKG' > "/mnt/server/webpanel/package.json"
 {
   "name": "lumishost-scpsl-webpanel",
-  "version": "2.4.0",
+  "version": "2.6.0",
   "type": "module",
   "scripts": {
     "start": "node server.mjs"
   },
   "dependencies": {
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "mysql2": "^3.11.4"
   }
 }
 EOF_WP_PKG
@@ -1027,12 +1033,92 @@ echo "--- [LUMISHOST] Installation du MEGA EGG TOUT-EN-UN v2.1 terminee avec suc
       },
       {
         name: 'ID Serveur Pterodactyl (8 caracteres)',
-        description: 'Identifiant court de votre serveur sur LumisHost (ex: f8a9c41b).',
+        description: 'Identifiant court de votre serveur sur LumisHost (ex: 283ba3e0).',
         env_variable: 'PTERO_SERVER_ID',
         default_value: pteroServerId,
         user_viewable: true,
         user_editable: true,
         rules: 'required|string',
+        field_type: 'text'
+      },
+      {
+        name: 'Salon Discord Logs En Direct (Channel ID)',
+        description: 'ID du salon Discord pour recevoir les logs automatiques (Connexions, Kills, Teamkills, Admin).',
+        env_variable: 'DISCORD_LOG_CHANNEL_ID',
+        default_value: '',
+        user_viewable: true,
+        user_editable: true,
+        rules: 'nullable|string',
+        field_type: 'text'
+      },
+      {
+        name: 'Salon Discord Sanctions (Channel ID)',
+        description: 'ID du salon Discord pour recevoir tous les embeds de Bans, Kicks, Warns et Unbans.',
+        env_variable: 'DISCORD_SANCTION_CHANNEL_ID',
+        default_value: '',
+        user_viewable: true,
+        user_editable: true,
+        rules: 'nullable|string',
+        field_type: 'text'
+      },
+      {
+        name: 'Webhook Discord Logs (Optionnel)',
+        description: 'URL Webhook Discord pour envoyer les sanctions et alertes Teamkill depuis le Panel Web.',
+        env_variable: 'DISCORD_WEBHOOK_URL',
+        default_value: '',
+        user_viewable: true,
+        user_editable: true,
+        rules: 'nullable|string',
+        field_type: 'text'
+      },
+      {
+        name: 'MySQL Host (Base Pterodactyl)',
+        description: 'Adresse IP ou hostname de votre base MySQL (onglet Databases sur Pterodactyl).',
+        env_variable: 'MYSQL_HOST',
+        default_value: '',
+        user_viewable: true,
+        user_editable: true,
+        rules: 'nullable|string',
+        field_type: 'text'
+      },
+      {
+        name: 'MySQL Port',
+        description: 'Port MySQL (par defaut 3306).',
+        env_variable: 'MYSQL_PORT',
+        default_value: '3306',
+        user_viewable: true,
+        user_editable: true,
+        rules: 'nullable|numeric',
+        field_type: 'text'
+      },
+      {
+        name: 'MySQL Database Name',
+        description: 'Nom de la base MySQL (ex: s12_scpsl).',
+        env_variable: 'MYSQL_DATABASE',
+        default_value: '',
+        user_viewable: true,
+        user_editable: true,
+        rules: 'nullable|string',
+        field_type: 'text'
+      },
+      {
+        name: 'MySQL Username',
+        description: 'Utilisateur MySQL fourni dans Pterodactyl -> Databases.',
+        env_variable: 'MYSQL_USER',
+        default_value: '',
+        user_viewable: true,
+        user_editable: true,
+        rules: 'nullable|string',
+        field_type: 'text'
+      },
+      {
+        name: 'MySQL Password',
+        description: 'Mot de passe MySQL fourni dans Pterodactyl -> Databases.',
+        env_variable: 'MYSQL_PASSWORD',
+        default_value: '',
+        user_viewable: true,
+        user_editable: true,
+        rules: 'nullable|string',
         field_type: 'text'
       },
       {
@@ -1215,7 +1301,7 @@ echo "--- Installation du Panel Web scpsl.lumishost.com terminee ---"`,
         name: 'ID Serveur SCP:SL',
         description: 'Identifiant court (8 caracteres) du serveur SCP:SL sur LumisHost',
         env_variable: 'PTERO_SERVER_ID',
-        default_value: 'f8a9c41b',
+        default_value: '283ba3e0',
         user_viewable: true,
         user_editable: true,
         rules: 'required|string',
@@ -1264,118 +1350,338 @@ export function generateDiscordBotCode(
   vipTiers: VipTier[],
   customTeams: CustomTeam[]
 ): string {
-  const cleanUrl = pteroUrl.replace(/\/$/, '') || 'https://panel.votre-domaine.fr';
-  const cleanId = serverId || 'a1b2c3d4';
+  const cleanUrl = pteroUrl.replace(/\/$/, '') || 'https://panel.lumishost.com';
+  const cleanId = serverId || '283ba3e0';
 
   return `/**
- * BOT DISCORD OFFICIEL SCP:SL <-> PANEL PTERODACTYL
- * Serveur : ${serverName}
- * Ce bot peut être hébergé directement sur votre Panel Pterodactyl (Egg Node.js) ou sur un VPS.
- * Installation : npm install discord.js axios dotenv
+ * BOT DISCORD OFFICIEL LUMISHOST SITE-19 v2.6.0 (SCP:SL 14.2.9 + EXILED 9 + PTERODACTYL + MYSQL)
+ * Serveur : ${serverName} (play.lumishost.com:1031) · Panel : https://scpsl.lumishost.com
+ * Fonctionnalités : Statut Live rotatif (joueurs, CPU, RAM), 18 commandes Slash complètes,
+ * préfixe '/' LocalAdmin automatique, Embeds haute qualité, Watcher Logs temps réel sur Discord & MySQL.
  */
 
-import { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import {
+  Client,
+  GatewayIntentBits,
+  REST,
+  Routes,
+  SlashCommandBuilder,
+  EmbedBuilder,
+  PermissionFlagsBits,
+  ActivityType
+} from 'discord.js';
 import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
 import 'dotenv/config';
 
 const CONFIG = {
-  DISCORD_TOKEN: process.env.DISCORD_TOKEN,
-  CLIENT_ID: process.env.DISCORD_CLIENT_ID,
-  GUILD_ID: process.env.DISCORD_GUILD_ID,
-  PTERO_URL: process.env.PTERO_URL || '${cleanUrl}',
-  PTERO_API_KEY: process.env.PTERO_CLIENT_API_KEY, // Clé API Client Pterodactyl (ptlc_...)
-  PTERO_SERVER_ID: process.env.PTERO_SERVER_ID || '${cleanId}',
+  DISCORD_TOKEN: (process.env.DISCORD_TOKEN || '').trim(),
+  CLIENT_ID: (process.env.DISCORD_CLIENT_ID || '').trim(),
+  GUILD_ID: (process.env.DISCORD_GUILD_ID || '1234962559791140896').trim(),
+  LOG_CHANNEL_ID: (process.env.DISCORD_LOG_CHANNEL_ID || '').trim(),
+  SANCTION_CHANNEL_ID: (process.env.DISCORD_SANCTION_CHANNEL_ID || process.env.DISCORD_LOG_CHANNEL_ID || '').trim(),
+  PTERO_URL: (process.env.PTERO_URL || '${cleanUrl}').replace(/\\/+$/, ''),
+  PTERO_API_KEY: (process.env.PTERO_CLIENT_API_KEY || '').trim(),
+  PTERO_SERVER_ID: (process.env.PTERO_SERVER_ID || '${cleanId}').trim(),
+  GAME_PORT: (process.env.SERVER_PORT || '1031').trim(),
+  CONFIG_DIR: path.join(process.env.SCPSL_ROOT || '/home/container', '.config'),
+  PANEL_URL: 'https://scpsl.lumishost.com',
+  CONNECT_ADDR: 'play.lumishost.com:' + (process.env.SERVER_PORT || '1031')
 };
 
-const pteroHeaders = () => ({
-  'Authorization': \`Bearer \${CONFIG.PTERO_API_KEY}\`,
-  'Content-Type': 'application/json',
-  'Accept': 'Application/vnd.pterodactyl.v1+json',
-});
+const NATIVE_LOCALADMIN_CMDS = new Set([
+  'sr', 'roundrestart', 'list', 'players', 'p', 'config', 'forcestart',
+  'stop', 'exit', 'quit', 'help', 'seed', 'plugins', 'exiled', 'echo'
+]);
 
-// Envoi de commande console au serveur SCP:SL sur Pterodactyl
-async function sendPterodactylCommand(command) {
-  const url = \`\${CONFIG.PTERO_URL}/api/client/servers/\${CONFIG.PTERO_SERVER_ID}/command\`;
-  await axios.post(url, { command }, { headers: pteroHeaders() });
+function formatScpslCmd(raw) {
+  const t = String(raw || '').trim();
+  if (!t) return '';
+  if (t.startsWith('/') || t.startsWith('!') || t.startsWith('@') || t.startsWith('$')) return t;
+  const first = t.split(/\\s+/)[0].toLowerCase();
+  if (NATIVE_LOCALADMIN_CMDS.has(first)) return t;
+  if (first === 'god' || first === 'noclip' || first === 'bypass') {
+    return '/' + t.replace(/\\s+on$/i, ' 1').replace(/\\s+off$/i, ' 0');
+  }
+  return '/' + t;
 }
 
-// Contrôle d'alimentation (start, restart, stop, kill)
+function normalizeDuration(raw) {
+  const c = String(raw || '24h').trim().toLowerCase();
+  if (!c || c === '0' || c.includes('perm')) return '50y';
+  if (/^\\d+(s|m|h|d|w|mo|y)$/.test(c)) return c;
+  const n = (c.match(/(\\d+)/) || [0, '24'])[1];
+  if (c.includes('min')) return n + 'm';
+  if (c.includes('jour') || c.includes('day') || c.includes('j')) return n + 'd';
+  if (c.includes('sem') || c.includes('week')) return n + 'w';
+  if (c.includes('an') || c.includes('year')) return n + 'y';
+  return n + 'h';
+}
+
+function makeBar(pct, size = 10) {
+  const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
+  const filled = Math.round((clamped / 100) * size);
+  return '█'.repeat(filled) + '░'.repeat(size - filled) + \` \${clamped.toFixed(1)}%\`;
+}
+
+function formatUptime(ms) {
+  const sec = Math.floor((Number(ms) || 0) / 1000);
+  const d = Math.floor(sec / 86400);
+  const h = Math.floor((sec % 86400) / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  return (d > 0 ? \`\${d}j \` : '') + \`\${h}h \${m}m\`;
+}
+
+const pteroHeaders = () => ({
+  Authorization: \`Bearer \${CONFIG.PTERO_API_KEY}\`,
+  'Content-Type': 'application/json',
+  Accept: 'Application/vnd.pterodactyl.v1+json'
+});
+
+let mysqlPool = null;
+async function recordSanctionMysql(rec) {
+  if (!process.env.MYSQL_HOST || !process.env.MYSQL_DATABASE || !process.env.MYSQL_USER) return;
+  try {
+    if (!mysqlPool) {
+      const m = await import('mysql2/promise');
+      mysqlPool = m.default.createPool({
+        host: process.env.MYSQL_HOST.trim(),
+        port: Number(process.env.MYSQL_PORT || 3306),
+        database: process.env.MYSQL_DATABASE.trim(),
+        user: process.env.MYSQL_USER.trim(),
+        password: process.env.MYSQL_PASSWORD || '',
+        waitForConnections: true,
+        connectionLimit: 3
+      });
+      await mysqlPool.query(
+        'CREATE TABLE IF NOT EXISTS lumishost_sanctions (id VARCHAR(64) PRIMARY KEY, target_name VARCHAR(191), target_steam_id VARCHAR(128), sanction_type VARCHAR(32), reason TEXT, duration VARCHAR(64), moderator VARCHAR(191), source VARCHAR(64), timestamp_label VARCHAR(64), active TINYINT(1) DEFAULT 1, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)'
+      );
+    }
+    await mysqlPool.query(
+      'INSERT INTO lumishost_sanctions (id,target_name,target_steam_id,sanction_type,reason,duration,moderator,source,timestamp_label,active) VALUES (?,?,?,?,?,?,?,?,?,?)',
+      [rec.id, rec.targetName, rec.targetSteamId, rec.type, rec.reason, rec.duration, rec.moderator, 'Bot Discord', rec.timestamp, rec.active ? 1 : 0]
+    );
+  } catch (e) {
+    console.error('[BOT MYSQL]', e.message);
+  }
+}
+
+async function sendPterodactylCommand(rawCommand) {
+  const command = formatScpslCmd(rawCommand);
+  const url = \`\${CONFIG.PTERO_URL}/api/client/servers/\${CONFIG.PTERO_SERVER_ID}/command\`;
+  await axios.post(url, { command }, { headers: pteroHeaders() });
+  return command;
+}
+
 async function sendPowerSignal(signal) {
   const url = \`\${CONFIG.PTERO_URL}/api/client/servers/\${CONFIG.PTERO_SERVER_ID}/power\`;
   await axios.post(url, { signal }, { headers: pteroHeaders() });
 }
 
-// Récupération de l'état RAM / CPU / Statut en temps réel
 async function getServerResources() {
   const url = \`\${CONFIG.PTERO_URL}/api/client/servers/\${CONFIG.PTERO_SERVER_ID}/resources\`;
   const res = await axios.get(url, { headers: pteroHeaders() });
   return res.data.attributes;
 }
 
-const commands = [
-  new SlashCommandBuilder()
-    .setName('status')
-    .setDescription('Afficher l’état en direct du serveur SCP:SL (RAM, CPU, Uptime) depuis Pterodactyl'),
+function readLocalLogs(subDir, maxLines = 180) {
+  const dir = path.join(CONFIG.CONFIG_DIR, 'SCP Secret Laboratory', subDir, CONFIG.GAME_PORT);
+  if (!fs.existsSync(dir)) return { file: null, lines: [] };
+  const txts = fs.readdirSync(dir)
+    .filter((f) => f.endsWith('.txt'))
+    .map((n) => ({ n, t: fs.statSync(path.join(dir, n)).mtimeMs }))
+    .sort((a, b) => a.t - b.t);
+  if (!txts.length) return { file: null, lines: [] };
+  const latest = txts[txts.length - 1].n;
+  const raw = fs.readFileSync(path.join(dir, latest), 'utf8');
+  return { file: latest, lines: raw.split(/\\r?\\n/).filter(Boolean).slice(-maxLines) };
+}
 
+function parseOnlinePlayersFromLocalLogs() {
+  const la = readLocalLogs('LocalAdminLogs', 220);
+  const sv = readLocalLogs('ServerLogs', 220);
+  const map = new Map();
+
+  for (const ln of [...sv.lines, ...la.lines]) {
+    const sm = ln.match(/(\\d{17}@(?:steam|discord|northwood))/i);
+    if (!sm) continue;
+    const sid = sm[1];
+    const lo = ln.toLowerCase();
+    const idm = ln.match(/\\[(\\d{1,4})\\]/) || ln.match(/\\bID[:\\s#]+(\\d{1,4})\\b/i) || ln.match(/\\((\\d{1,4})\\)\\s*[-–]/);
+    const nm = ln.match(/(?:\\]\\s*|[-–]\\s*|\\)\\s*)([^\\(\\[\\|]+?)\\s*\\(\\d{17}@/);
+    const prev = map.get(sid);
+    if (lo.includes('disconnected') || lo.includes('left the server') || lo.includes('kicked') || lo.includes('banned from')) {
+      if (prev) map.set(sid, { ...prev, isOnline: false });
+      continue;
+    }
+    const name = (nm && nm[1] ? nm[1].replace(/^[\\-\\*\\s:\\[\\]\\d]+/, '').trim() : '') || (prev && prev.name) || sid;
+    map.set(sid, { id: idm ? Number(idm[1]) : (prev ? prev.id : 0), name, steamId: sid, isOnline: true });
+  }
+
+  let li = -1;
+  for (let i = la.lines.length - 1; i >= 0; i--) {
+    if (/list of players|players\\s*\\(\\d+|no players connected/i.test(la.lines[i])) { li = i; break; }
+  }
+  if (li !== -1) {
+    const seen = new Set();
+    let empty = false;
+    for (const ln of la.lines.slice(li, li + 60)) {
+      if (/no players connected|0\\s*\\/\\s*\\d+\\s*players/i.test(ln)) empty = true;
+      const sm = ln.match(/(\\d{17}@(?:steam|discord|northwood))/i);
+      if (!sm) continue;
+      seen.add(sm[1]);
+      const idm = ln.match(/\\[(\\d{1,4})\\]/) || ln.match(/\\bID[:\\s#]+(\\d{1,4})\\b/i) || ln.match(/\\((\\d{1,4})\\)/);
+      const nm = ln.match(/(?:\\]\\s*|[-–]\\s*|\\)\\s*)([^\\(\\[\\|]+?)\\s*\\(\\d{17}@/);
+      const prev = map.get(sm[1]);
+      map.set(sm[1], {
+        id: idm ? Number(idm[1]) : (prev ? prev.id : 1),
+        name: (nm && nm[1] ? nm[1].replace(/^[\\-\\*\\s:\\[\\]\\d]+/, '').trim() : '') || (prev ? prev.name : sm[1]),
+        steamId: sm[1],
+        isOnline: true
+      });
+    }
+    if (empty && seen.size === 0) for (const [k, v] of map) map.set(k, { ...v, isOnline: false });
+    else if (seen.size > 0) for (const [k, v] of map) if (!seen.has(k)) map.set(k, { ...v, isOnline: false });
+  }
+
+  let seq = 1;
+  return Array.from(map.values())
+    .filter((p) => p.isOnline)
+    .map((p) => (p.id > 0 ? p : { ...p, id: seq++ }));
+}
+
+function addMemberToRemoteAdminFile(steamId, role, label) {
+  const raPath = path.join(CONFIG.CONFIG_DIR, 'SCP Secret Laboratory/config', CONFIG.GAME_PORT, 'config_remoteadmin.txt');
+  if (!fs.existsSync(raPath)) return false;
+  let txt = fs.readFileSync(raPath, 'utf8');
+  const esc = steamId.replace(/[.*+?^$()|[\\]\\\\]/g, '\\\\$&');
+  const re = new RegExp('^\\\\s*-\\\\s*' + esc + ':.*$', 'm');
+  if (re.test(txt)) txt = txt.replace(re, \` - \${steamId}: \${role}\`);
+  else if (/^Members:\\s*\\[\\]/m.test(txt)) txt = txt.replace(/^Members:\\s*\\[\\]/m, \`Members:\\n # \${label}\\n - \${steamId}: \${role}\`);
+  else if (txt.includes('Members:')) txt = txt.replace('Members:', \`Members:\\n # \${label}\\n - \${steamId}: \${role}\`);
+  else txt = \`Members:\\n # \${label}\\n - \${steamId}: \${role}\\n\\n\` + txt;
+  fs.writeFileSync(raPath, txt, 'utf8');
+  return true;
+}
+
+function baseEmbed(title, color = 0x06B6D4) {
+  return new EmbedBuilder()
+    .setAuthor({ name: 'LUMISHOST SITE-19 · SCP:SL 14.2.9', url: CONFIG.PANEL_URL })
+    .setTitle(title)
+    .setColor(color)
+    .setFooter({ text: \`\${CONFIG.CONNECT_ADDR} · Panel Web: scpsl.lumishost.com\` })
+    .setTimestamp();
+}
+
+async function sendToChannel(channelId, embed) {
+  if (!channelId) return;
+  try {
+    const ch = await client.channels.fetch(channelId);
+    if (ch && ch.isTextBased()) await ch.send({ embeds: [embed] });
+  } catch (e) {
+    console.error('[BOT LOG CHANNEL]', e.message);
+  }
+}
+
+const commands = [
+  new SlashCommandBuilder().setName('status').setDescription('Tableau de bord complet du serveur SCP:SL (Joueurs, CPU, RAM, Disque, Uptime)'),
+  new SlashCommandBuilder().setName('players').setDescription('Afficher la liste des vrais joueurs connectés en direct (ID + Pseudo + SteamID64)'),
   new SlashCommandBuilder()
     .setName('ban')
-    .setDescription('Bannir un joueur du serveur SCP:SL via SteamID64')
-    .addStringOption(opt => opt.setName('steamid').setDescription('Ex: 76561198000000000@steam').setRequired(true))
-    .addStringOption(opt => opt.setName('duree').setDescription('Durée (ex: 1h, 1d, 7d, 30d, perm)').setRequired(true))
-    .addStringOption(opt => opt.setName('raison').setDescription('Motif de la sanction').setRequired(true))
+    .setDescription('Bannir un joueur en ligne ou hors-ligne (/ban + /oban + MySQL + Log Discord)')
+    .addStringOption(o => o.setName('cible').setDescription('SteamID64 (76561199...@steam) ou ID numérique').setRequired(true))
+    .addStringOption(o => o.setName('duree').setDescription('Durée (ex: 1h, 24h, 7d, 30d, perm)').setRequired(true))
+    .addStringOption(o => o.setName('raison').setDescription('Motif de la sanction').setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
-
   new SlashCommandBuilder()
     .setName('unban')
-    .setDescription('Débannir un SteamID64 du serveur SCP:SL')
-    .addStringOption(opt => opt.setName('steamid').setDescription('Ex: 76561198000000000@steam').setRequired(true))
+    .setDescription('Débannir un SteamID64 du serveur SCP:SL (/unban id)')
+    .addStringOption(o => o.setName('steamid').setDescription('76561199...@steam').setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers),
-
   new SlashCommandBuilder()
     .setName('kick')
-    .setDescription('Expulser immédiatement un joueur du serveur SCP:SL')
-    .addStringOption(opt => opt.setName('steamid').setDescription('SteamID64 ou ID Joueur').setRequired(true))
-    .addStringOption(opt => opt.setName('raison').setDescription('Motif de l’expulsion').setRequired(true))
+    .setDescription('Expulser immédiatement un joueur connecté du serveur SCP:SL')
+    .addStringOption(o => o.setName('cible').setDescription('ID joueur (ex: 1) ou SteamID64').setRequired(true))
+    .addStringOption(o => o.setName('raison').setDescription('Motif de l’expulsion').setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
-
+  new SlashCommandBuilder()
+    .setName('warn')
+    .setDescription('Avertir un joueur directement sur son écran en jeu (/pbc) et enregistrer au casier')
+    .addStringOption(o => o.setName('cible').setDescription('ID joueur ou SteamID64').setRequired(true))
+    .addStringOption(o => o.setName('raison').setDescription('Message d’avertissement').setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+  new SlashCommandBuilder()
+    .setName('broadcast')
+    .setDescription('Diffuser un message staff à tous les joueurs en jeu (/bc)')
+    .addStringOption(o => o.setName('message').setDescription('Texte à afficher en haut de l’écran').setRequired(true))
+    .addIntegerOption(o => o.setName('duree').setDescription('Durée en secondes (défaut: 10)').setRequired(false))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+  new SlashCommandBuilder()
+    .setName('cassie')
+    .setDescription('Faire parler l’IA C.A.S.S.I.E. dans tout le complexe Site-19 (/cassie)')
+    .addStringOption(o => o.setName('texte').setDescription('Texte anglais C.A.S.S.I.E. (ex: attention all personnel)').setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
   new SlashCommandBuilder()
     .setName('addmod')
-    .setDescription('Ajouter un modérateur ou staff dans RemoteAdmin SCP:SL')
-    .addStringOption(opt => opt.setName('steamid').setDescription('76561198...@steam').setRequired(true))
-    .addStringOption(opt => opt.setName('grade').setDescription('Grade RemoteAdmin (moderator, admin, helper)').setRequired(true))
+    .setDescription('Ajouter un Staff dans config_remoteadmin.txt + config reload + /setgroup')
+    .addStringOption(o => o.setName('steamid').setDescription('76561199...@steam').setRequired(true))
+    .addStringOption(o => o.setName('grade').setDescription('owner | developer | admin | moderator | helper').setRequired(true))
+    .addStringOption(o => o.setName('pseudo').setDescription('Pseudo du staff').setRequired(false))
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-
   new SlashCommandBuilder()
     .setName('givevip')
-    .setDescription('Attribuer un Tag VIP personnalisé à un joueur en jeu')
-    .addStringOption(opt => opt.setName('steamid').setDescription('76561198...@steam').setRequired(true))
-    .addStringOption(opt => opt.setName('tier').setDescription('Grade VIP (${vipTiers.map(v => v.id).join(', ')})').setRequired(true))
+    .setDescription('Attribuer un Tag VIP dans config_remoteadmin.txt + /setgroup')
+    .addStringOption(o => o.setName('steamid').setDescription('76561199...@steam').setRequired(true))
+    .addStringOption(o => o.setName('tier').setDescription('Grade VIP (${vipTiers.map(v => v.id).join(', ')})').setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles),
-
+  new SlashCommandBuilder()
+    .setName('forceclass')
+    .setDescription('Changer la classe d’un joueur en jeu (/forceclass)')
+    .addStringOption(o => o.setName('cible').setDescription('ID joueur ou SteamID64').setRequired(true))
+    .addStringOption(o => o.setName('role').setDescription('Ex: Scp173, Scp049, NtfCaptain, ChaosMarauder, Tutorial').setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
+    .setName('give')
+    .setDescription('Donner un objet ou une arme à un joueur en jeu (/give)')
+    .addStringOption(o => o.setName('cible').setDescription('ID joueur ou SteamID64').setRequired(true))
+    .addStringOption(o => o.setName('item').setDescription('Ex: KeycardO5, GunCOM45, MicroHID, Jailbird, SCP268').setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
   new SlashCommandBuilder()
     .setName('spawnteam')
-    .setDescription('Forcer l’apparition d’une équipe custom EXILED en jeu')
-    .addStringOption(opt => opt.setName('equipe').setDescription('Clé équipe (${customTeams.map(t => t.roleKey).join(', ')})').setRequired(true))
+    .setDescription('Déployer une équipe custom EXILED en jeu')
+    .addStringOption(o => o.setName('equipe').setDescription('Clé (${customTeams.map(t => t.roleKey).join(', ')})').setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
-
   new SlashCommandBuilder()
     .setName('eventmode')
-    .setDescription('Activer/Désactiver le Mode Event et lancer une annonce C.A.S.S.I.E.')
-    .addBooleanOption(opt => opt.setName('actif').setDescription('Activer (true) ou Désactiver (false)').setRequired(true))
-    .addStringOption(opt => opt.setName('nom_event').setDescription('Nom de l’événement à diffuser en Broadcast').setRequired(false))
+    .setDescription('Activer/Désactiver le Mode Event avec Broadcast & C.A.S.S.I.E.')
+    .addBooleanOption(o => o.setName('actif').setDescription('true = activer, false = désactiver').setRequired(true))
+    .addStringOption(o => o.setName('nom_event').setDescription('Nom de l’événement').setRequired(false))
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageEvents),
-
+  new SlashCommandBuilder()
+    .setName('round')
+    .setDescription('Contrôler la manche en cours (restart, lock, unlock, forcestart)')
+    .addStringOption(o => o.setName('action').setDescription('restart | lock | unlock | forcestart').setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
+    .setName('warhead')
+    .setDescription('Contrôler l’Ogive Nucléaire Alpha Warhead (detonate, cancel, lock, unlock)')
+    .addStringOption(o => o.setName('action').setDescription('detonate | cancel | lock | unlock').setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+  new SlashCommandBuilder()
+    .setName('logs')
+    .setDescription('Afficher les 15 dernières lignes de logs réels (ServerLogs / LocalAdmin)')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
   new SlashCommandBuilder()
     .setName('console')
-    .setDescription('Envoyer n’importe quelle commande RemoteAdmin / LocalAdmin à la console Pterodactyl')
-    .addStringOption(opt => opt.setName('cmd').setDescription('Ex: sr, bc 10 Bonjour, cassie_sl ...').setRequired(true))
+    .setDescription('Envoyer n’importe quelle commande (préfixe / géré automatiquement)')
+    .addStringOption(o => o.setName('cmd').setDescription('Ex: /bc 10 Salut, /god 1 1, sr, config reload').setRequired(true))
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
-
   new SlashCommandBuilder()
     .setName('power')
     .setDescription('Contrôler l’alimentation du serveur Pterodactyl (start, restart, stop)')
-    .addStringOption(opt => opt.setName('action').setDescription('start | restart | stop').setRequired(true))
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+    .addStringOption(o => o.setName('action').setDescription('start | restart | stop').setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
 ];
 
 if (!CONFIG.DISCORD_TOKEN) {
@@ -1385,33 +1691,114 @@ if (!CONFIG.DISCORD_TOKEN) {
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
+let presenceStep = 0;
+async function updateLivePresence() {
+  if (!client.user) return;
+  try {
+    const stats = CONFIG.PTERO_API_KEY ? await getServerResources() : null;
+    const online = parseOnlinePlayersFromLocalLogs();
+    const state = stats ? String(stats.current_state || 'offline').toUpperCase() : 'EN LIGNE';
+    const ramGb = stats ? (stats.resources.memory_bytes / (1024 ** 3)).toFixed(2) : '0.00';
+    const cpuPct = stats ? Number(stats.resources.cpu_absolute || 0).toFixed(1) : '0.0';
+
+    const statuses = [
+      { name: \`\${state === 'RUNNING' ? '🟢' : '🔴'} \${online.length}/32 joueurs · \${CONFIG.CONNECT_ADDR}\`, type: ActivityType.Watching },
+      { name: \`⚡ CPU \${cpuPct}% · RAM \${ramGb} Go · Site-19\`, type: ActivityType.Watching },
+      { name: \`🛡️ Panel: scpsl.lumishost.com · EXILED 9\`, type: ActivityType.Playing }
+    ];
+    const picked = statuses[presenceStep % statuses.length];
+    presenceStep++;
+
+    client.user.setPresence({
+      status: state === 'RUNNING' ? 'online' : 'dnd',
+      activities: [{ name: picked.name, type: picked.type }]
+    });
+  } catch {
+    client.user.setPresence({
+      status: 'idle',
+      activities: [{ name: \`Site-19 · \${CONFIG.CONNECT_ADDR}\`, type: ActivityType.Watching }]
+    });
+  }
+}
+
+// Live ServerLogs & LocalAdminLogs watcher -> automatic Discord log embeds
+const seenLogHashes = new Set();
+let logWatcherBootstrapped = false;
+
+async function pollLiveLogsToDiscord() {
+  if (!CONFIG.LOG_CHANNEL_ID) return;
+  const sv = readLocalLogs('ServerLogs', 60);
+  const la = readLocalLogs('LocalAdminLogs', 40);
+  const all = [...sv.lines, ...la.lines];
+
+  if (!logWatcherBootstrapped) {
+    all.forEach((l) => seenLogHashes.add(l));
+    logWatcherBootstrapped = true;
+    return;
+  }
+
+  for (const line of all) {
+    if (seenLogHashes.has(line)) continue;
+    seenLogHashes.add(line);
+    if (seenLogHashes.size > 1500) {
+      const first = seenLogHashes.values().next().value;
+      seenLogHashes.delete(first);
+    }
+
+    const lo = line.toLowerCase();
+    let title = null;
+    let color = 0x38BDF8;
+    let targetChan = CONFIG.LOG_CHANNEL_ID;
+
+    if (lo.includes('teamkill') || lo.includes('friendly fire')) {
+      title = '🚨 ALERTE TEAMKILL DÉTECTÉ';
+      color = 0xDC143C;
+      targetChan = CONFIG.SANCTION_CHANNEL_ID || CONFIG.LOG_CHANNEL_ID;
+    } else if (lo.includes('banned') || lo.includes('kicked')) {
+      title = '🔨 SANCTION EN JEU';
+      color = 0xF97316;
+      targetChan = CONFIG.SANCTION_CHANNEL_ID || CONFIG.LOG_CHANNEL_ID;
+    } else if (lo.includes(' killed ') || lo.includes('has been killed by')) {
+      title = '⚔️ ÉLIMINATION (KILL)';
+      color = 0xF59E0B;
+    } else if (lo.includes('remoteadmin') || lo.includes('executed command')) {
+      title = '🛠️ ACTION REMOTEADMIN';
+      color = 0x8B5CF6;
+    } else if (lo.includes('connected') && !lo.includes('disconnected') && /\\d{17}@/.test(line)) {
+      title = '🟢 CONNEXION JOUEUR';
+      color = 0x10B981;
+    } else if (lo.includes('disconnected') && /\\d{17}@/.test(line)) {
+      title = '🔴 DÉCONNEXION JOUEUR';
+      color = 0x64748B;
+    }
+
+    if (title) {
+      const embed = baseEmbed(title, color).setDescription(\`\\\`\\\`\\\`\\n\${line.slice(0, 350)}\\n\\\`\\\`\\\`\`);
+      await sendToChannel(targetChan, embed);
+    }
+  }
+}
+
 client.once('clientReady', async () => {
   console.log(\`[BOT SCP:SL] Connecté en tant que \${client.user.tag}\`);
   const rest = new REST({ version: '10' }).setToken(CONFIG.DISCORD_TOKEN);
   const appId = CONFIG.CLIENT_ID || client.user.id;
   try {
     if (CONFIG.GUILD_ID) {
-      await rest.put(Routes.applicationGuildCommands(appId, CONFIG.GUILD_ID), {
-        body: commands.map(c => c.toJSON()),
-      });
-      console.log(\`[BOT SCP:SL] Commandes Slash enregistrées sur la guilde \${CONFIG.GUILD_ID}.\`);
+      await rest.put(Routes.applicationGuildCommands(appId, CONFIG.GUILD_ID), { body: commands.map(c => c.toJSON()) });
+      console.log(\`[BOT SCP:SL] \${commands.length} commandes Slash enregistrées sur la guilde \${CONFIG.GUILD_ID}.\`);
     } else {
-      await rest.put(Routes.applicationCommands(appId), {
-        body: commands.map(c => c.toJSON()),
-      });
-      console.log('[BOT SCP:SL] Commandes Slash globales enregistrées.');
+      await rest.put(Routes.applicationCommands(appId), { body: commands.map(c => c.toJSON()) });
+      console.log(\`[BOT SCP:SL] \${commands.length} commandes Slash globales enregistrées.\`);
     }
   } catch (err) {
-    console.error(\`[BOT SCP:SL] Impossible d'enregistrer les commandes sur la guilde \${CONFIG.GUILD_ID} (\${err.message}). Vérifiez que le bot est bien invité avec les scopes "bot" + "applications.commands". Fallback en mode commandes globales...\`);
-    try {
-      await rest.put(Routes.applicationCommands(appId), {
-        body: commands.map(c => c.toJSON()),
-      });
-      console.log('[BOT SCP:SL] Commandes Slash globales enregistrées en fallback.');
-    } catch (globalErr) {
-      console.error('[BOT SCP:SL] Erreur commandes globales:', globalErr.message);
-    }
+    console.error('[BOT SCP:SL] Erreur guilde, fallback global:', err.message);
+    await rest.put(Routes.applicationCommands(appId), { body: commands.map(c => c.toJSON()) }).catch(() => {});
   }
+
+  await updateLivePresence();
+  setInterval(updateLivePresence, 25000);
+  setInterval(pollLiveLogsToDiscord, 12000);
 });
 
 client.on('interactionCreate', async (interaction) => {
@@ -1419,102 +1806,254 @@ client.on('interactionCreate', async (interaction) => {
 
   try {
     if (interaction.commandName === 'status') {
+      await interaction.deferReply();
       const stats = await getServerResources();
+      const online = parseOnlinePlayersFromLocalLogs();
+      const isUp = stats.current_state === 'running';
       const ramGb = (stats.resources.memory_bytes / (1024 ** 3)).toFixed(2);
-      const cpuPct = stats.resources.cpu_absolute.toFixed(1);
-      const embed = new EmbedBuilder()
-        .setTitle('État du Serveur SCP:SL — Panel Pterodactyl')
-        .setColor(stats.current_state === 'running' ? 0x16A34A : 0xDC143C)
+      const diskGb = (stats.resources.disk_bytes / (1024 ** 3)).toFixed(2);
+      const cpuPct = Number(stats.resources.cpu_absolute || 0);
+      const embed = baseEmbed(isUp ? '🟢 Site-19 EN LIGNE — État Temps Réel' : '🔴 Site-19 HORS LIGNE', isUp ? 0x10B981 : 0xDC143C)
+        .setDescription(\`**Connexion Directe :** \\\`\${CONFIG.CONNECT_ADDR}\\\`\\n**Panel Web RemoteAdmin :** \${CONFIG.PANEL_URL}\`)
         .addFields(
-          { name: 'Statut', value: stats.current_state.toUpperCase(), inline: true },
-          { name: 'Charge CPU', value: \`\${cpuPct}%\`, inline: true },
-          { name: 'Mémoire RAM', value: \`\${ramGb} Go\`, inline: true }
-        )
-        .setTimestamp();
-      return await interaction.reply({ embeds: [embed] });
+          { name: '👥 Joueurs En Ligne', value: \`**\${online.length} / 32**\`, inline: true },
+          { name: '📡 État Serveur', value: \`**\${String(stats.current_state).toUpperCase()}**\`, inline: true },
+          { name: '⏱️ Uptime', value: formatUptime(stats.resources.uptime), inline: true },
+          { name: '⚡ Processeur (CPU)', value: \`\\\`\${makeBar(Math.min(100, cpuPct))}\\\`\`, inline: false },
+          { name: '🧠 Mémoire RAM', value: \`**\${ramGb} Go**\`, inline: true },
+          { name: '💾 Stockage Disque', value: \`**\${diskGb} Go**\`, inline: true },
+          { name: '⚙️ Version', value: 'SCP:SL 14.2.9 · EXILED 9', inline: true }
+        );
+      return await interaction.editReply({ embeds: [embed] });
+    }
+
+    if (interaction.commandName === 'players') {
+      await interaction.deferReply();
+      if (CONFIG.PTERO_API_KEY) {
+        await sendPterodactylCommand('list');
+        await new Promise((r) => setTimeout(r, 600));
+      }
+      const online = parseOnlinePlayersFromLocalLogs();
+      const embed = baseEmbed(\`👥 Joueurs Connectés sur Site-19 (\${online.length}/32)\`, online.length > 0 ? 0x10B981 : 0x64748B);
+      if (online.length === 0) {
+        embed.setDescription(\`Aucun joueur actuellement connecté sur \\\`\${CONFIG.CONNECT_ADDR}\\\`.\`);
+      } else {
+        embed.setDescription(online.map((p) => \`**#\${p.id}** · **\${p.name}** — \\\`\${p.steamId}\\\`\`).join('\\n'));
+      }
+      return await interaction.editReply({ embeds: [embed] });
     }
 
     if (interaction.commandName === 'ban') {
-      const steamid = interaction.options.getString('steamid', true);
-      const duree = interaction.options.getString('duree', true);
-      const raison = interaction.options.getString('raison', true);
-      await sendPterodactylCommand(\`ban \${steamid} \${duree} "\${raison} (Par \${interaction.user.username})"\`);
+      await interaction.deferReply();
+      const cible = interaction.options.getString('cible', true).trim();
+      const dureeRaw = interaction.options.getString('duree', true).trim();
+      const raison = interaction.options.getString('raison', true).trim();
+      const dur = normalizeDuration(dureeRaw);
 
-      const embed = new EmbedBuilder()
-        .setTitle('Sanction SCP:SL — Bannissement Exécuté')
-        .setColor(0xDC143C)
+      const online = parseOnlinePlayersFromLocalLogs();
+      const found = online.find((p) => String(p.id) === cible || p.steamId.toLowerCase() === cible.toLowerCase());
+      const executed = [];
+      if (found) executed.push(await sendPterodactylCommand(\`/ban \${found.id} \${dur} \${raison} (Par \${interaction.user.username})\`));
+      const steamId = found ? found.steamId : (cible.includes('@') ? cible : \`\${cible}@steam\`);
+      executed.push(await sendPterodactylCommand(\`/oban \${steamId} \${dur} \${raison} (Par \${interaction.user.username})\`));
+
+      await recordSanctionMysql({
+        id: 'SAN-' + Date.now().toString().slice(-6),
+        targetName: found ? found.name : steamId,
+        targetSteamId: steamId,
+        type: 'BAN',
+        reason: raison,
+        duration: \`\${dureeRaw} (\${dur})\`,
+        moderator: interaction.user.tag,
+        timestamp: new Date().toLocaleString('fr-FR'),
+        active: true
+      });
+
+      const embed = baseEmbed('🔨 Bannissement Exécuté — Site-19', 0xDC143C)
         .addFields(
-          { name: 'Cible', value: \`\\\`\${steamid}\\\`\`, inline: true },
-          { name: 'Durée', value: duree, inline: true },
-          { name: 'Modérateur', value: interaction.user.tag, inline: true },
-          { name: 'Motif', value: raison }
-        )
-        .setTimestamp();
-      return await interaction.reply({ embeds: [embed] });
+          { name: '👤 Joueur / SteamID', value: \`\${found ? found.name + ' · ' : ''}\\\`\${steamId}\\\`\`, inline: true },
+          { name: '⏱️ Durée', value: \`**\${dureeRaw}** (\\\`\${dur}\\\`)\`, inline: true },
+          { name: '👮 Modérateur', value: \`<@\${interaction.user.id}>\`, inline: true },
+          { name: '📝 Motif', value: raison, inline: false },
+          { name: '⚙️ Console Exécutée', value: \`\\\`\${executed.join(' ; ')}\\\`\`, inline: false }
+        );
+      await sendToChannel(CONFIG.SANCTION_CHANNEL_ID, embed);
+      return await interaction.editReply({ embeds: [embed] });
     }
 
     if (interaction.commandName === 'unban') {
-      const steamid = interaction.options.getString('steamid', true);
-      await sendPterodactylCommand(\`unban \${steamid}\`);
-      return await interaction.reply({ content: \`Le joueur **\${steamid}** a été débanni du serveur SCP:SL.\` });
+      await interaction.deferReply();
+      const raw = interaction.options.getString('steamid', true).trim();
+      const sid = raw.includes('@') ? raw : \`\${raw}@steam\`;
+      const cmd = await sendPterodactylCommand(\`/unban id \${sid}\`);
+      const embed = baseEmbed('✅ Débannissement Exécuté', 0x16A34A)
+        .addFields(
+          { name: '👤 SteamID64', value: \`\\\`\${sid}\\\`\`, inline: true },
+          { name: '👮 Modérateur', value: \`<@\${interaction.user.id}>\`, inline: true },
+          { name: '⚙️ Commande', value: \`\\\`\${cmd}\\\`\`, inline: false }
+        );
+      await sendToChannel(CONFIG.SANCTION_CHANNEL_ID, embed);
+      return await interaction.editReply({ embeds: [embed] });
     }
 
     if (interaction.commandName === 'kick') {
-      const steamid = interaction.options.getString('steamid', true);
-      const raison = interaction.options.getString('raison', true);
-      await sendPterodactylCommand(\`kick \${steamid} "\${raison}"\`);
-      return await interaction.reply({ content: \`Joueur **\${steamid}** expulsé du serveur SCP:SL. Motif : *\${raison}*\` });
+      await interaction.deferReply();
+      const cible = interaction.options.getString('cible', true).trim();
+      const raison = interaction.options.getString('raison', true).trim();
+      const found = parseOnlinePlayersFromLocalLogs().find((p) => String(p.id) === cible || p.steamId.toLowerCase() === cible.toLowerCase());
+      const targetRef = found ? String(found.id) : cible;
+      const cmd = await sendPterodactylCommand(\`/kick \${targetRef} \${raison}\`);
+      const embed = baseEmbed('👢 Expulsion (Kick) Exécutée', 0xF97316)
+        .addFields(
+          { name: '👤 Cible', value: found ? \`**\${found.name}** (#\${found.id} · \\\`\${found.steamId}\\\`)\` : \`\\\`\${cible}\\\`\`, inline: true },
+          { name: '👮 Modérateur', value: \`<@\${interaction.user.id}>\`, inline: true },
+          { name: '📝 Motif', value: raison, inline: false },
+          { name: '⚙️ Commande', value: \`\\\`\${cmd}\\\`\`, inline: false }
+        );
+      await sendToChannel(CONFIG.SANCTION_CHANNEL_ID, embed);
+      return await interaction.editReply({ embeds: [embed] });
     }
 
-    if (interaction.commandName === 'addmod') {
-      const steamid = interaction.options.getString('steamid', true);
-      const grade = interaction.options.getString('grade', true);
-      await sendPterodactylCommand(\`setgroup \${steamid} \${grade}\`);
-      await sendPterodactylCommand('reload remoteadmin');
-      return await interaction.reply({ content: \`Le joueur **\${steamid}** a reçu le grade staff **\${grade}** sur le serveur.\` });
+    if (interaction.commandName === 'warn') {
+      await interaction.deferReply();
+      const cible = interaction.options.getString('cible', true).trim();
+      const raison = interaction.options.getString('raison', true).trim();
+      const found = parseOnlinePlayersFromLocalLogs().find((p) => String(p.id) === cible || p.steamId.toLowerCase() === cible.toLowerCase());
+      const cmd = found
+        ? await sendPterodactylCommand(\`/pbc \${found.id} 10 <color=#DC143C><b>[AVERTISSEMENT STAFF]</b></color> \${raison}\`)
+        : await sendPterodactylCommand(\`/bc 8 <color=#FAFF86><b>[WARN STAFF]</b></color> \${cible} : \${raison}\`);
+      const embed = baseEmbed('⚠️ Avertissement En Jeu Envoyé', 0xF59E0B)
+        .addFields(
+          { name: '👤 Cible', value: found ? \`**\${found.name}** (#\${found.id})\` : \`\\\`\${cible}\\\`\`, inline: true },
+          { name: '👮 Modérateur', value: \`<@\${interaction.user.id}>\`, inline: true },
+          { name: '📝 Message', value: raison, inline: false },
+          { name: '⚙️ Commande', value: \`\\\`\${cmd}\\\`\`, inline: false }
+        );
+      await sendToChannel(CONFIG.SANCTION_CHANNEL_ID, embed);
+      return await interaction.editReply({ embeds: [embed] });
     }
 
-    if (interaction.commandName === 'givevip') {
-      const steamid = interaction.options.getString('steamid', true);
-      const tier = interaction.options.getString('tier', true);
-      await sendPterodactylCommand(\`setgroup \${steamid} \${tier}\`);
-      return await interaction.reply({ content: \`Tag VIP **\${tier}** attribué à **\${steamid}** en direct !\` });
+    if (interaction.commandName === 'broadcast') {
+      const msg = interaction.options.getString('message', true);
+      const dur = interaction.options.getInteger('duree') || 10;
+      const cmd = await sendPterodactylCommand(\`/bc \${dur} <color=#FAFF86><b>[ANNONCE DISCORD]</b></color> \${msg}\`);
+      const embed = baseEmbed('📢 Broadcast Envoyé En Jeu', 0xF59E0B)
+        .addFields(
+          { name: '⏱️ Durée', value: \`\${dur} secondes\`, inline: true },
+          { name: '👮 Auteur', value: \`<@\${interaction.user.id}>\`, inline: true },
+          { name: '💬 Message', value: msg, inline: false }
+        );
+      return await interaction.reply({ embeds: [embed] });
+    }
+
+    if (interaction.commandName === 'cassie') {
+      const texte = interaction.options.getString('texte', true);
+      const cmd = await sendPterodactylCommand(\`/cassie \${texte}\`);
+      const embed = baseEmbed('🔊 Annonce C.A.S.S.I.E. Diffusée', 0x06B6D4)
+        .addFields({ name: '🎙️ Texte Vocal', value: \`\\\`\${texte}\\\`\` }, { name: '⚙️ Commande', value: \`\\\`\${cmd}\\\`\` });
+      return await interaction.reply({ embeds: [embed] });
+    }
+
+    if (interaction.commandName === 'addmod' || interaction.commandName === 'givevip') {
+      await interaction.deferReply();
+      const rawSid = interaction.options.getString('steamid', true).trim();
+      const steamId = rawSid.includes('@') ? rawSid : \`\${rawSid}@steam\`;
+      const role = interaction.commandName === 'addmod'
+        ? interaction.options.getString('grade', true).trim()
+        : interaction.options.getString('tier', true).trim();
+      const pseudo = interaction.options.getString('pseudo') || steamId;
+
+      const savedFile = addMemberToRemoteAdminFile(steamId, role, pseudo);
+      await sendPterodactylCommand('config reload');
+      const found = parseOnlinePlayersFromLocalLogs().find((p) => p.steamId.toLowerCase() === steamId.toLowerCase());
+      let liveCmd = 'En attente de connexion (déjà écrit dans config_remoteadmin.txt)';
+      if (found) liveCmd = await sendPterodactylCommand(\`/setgroup \${found.id} \${role}\`);
+
+      const embed = baseEmbed(interaction.commandName === 'addmod' ? '🛡️ Grade Staff Appliqué' : '⭐ Tag VIP Appliqué', 0x8B5CF6)
+        .addFields(
+          { name: '👤 Joueur', value: \`\${pseudo} (\\\`\${steamId}\\\`)\`, inline: true },
+          { name: '🏷️ Rôle RemoteAdmin', value: \`**\${role}**\`, inline: true },
+          { name: '💾 config_remoteadmin.txt', value: savedFile ? '✅ Mis à jour' : '⚠️ Non trouvé', inline: true },
+          { name: '⚡ Application Live', value: \`\\\`\${liveCmd}\\\`\`, inline: false }
+        );
+      await sendToChannel(CONFIG.SANCTION_CHANNEL_ID, embed);
+      return await interaction.editReply({ embeds: [embed] });
+    }
+
+    if (interaction.commandName === 'forceclass') {
+      const cible = interaction.options.getString('cible', true).trim();
+      const role = interaction.options.getString('role', true).trim();
+      const found = parseOnlinePlayersFromLocalLogs().find((p) => String(p.id) === cible || p.steamId.toLowerCase() === cible.toLowerCase());
+      const cmd = await sendPterodactylCommand(\`/forceclass \${found ? found.id : cible} \${role}\`);
+      return await interaction.reply({ embeds: [baseEmbed('🎭 Forceclass Exécuté', 0x06B6D4).setDescription(\`Commande envoyée : \\\`\${cmd}\\\`\`)] });
+    }
+
+    if (interaction.commandName === 'give') {
+      const cible = interaction.options.getString('cible', true).trim();
+      const item = interaction.options.getString('item', true).trim();
+      const found = parseOnlinePlayersFromLocalLogs().find((p) => String(p.id) === cible || p.steamId.toLowerCase() === cible.toLowerCase());
+      const cmd = await sendPterodactylCommand(\`/give \${found ? found.id : cible} \${item}\`);
+      return await interaction.reply({ embeds: [baseEmbed('🎒 Objet Donné En Jeu', 0x10B981).setDescription(\`Commande envoyée : \\\`\${cmd}\\\`\`)] });
     }
 
     if (interaction.commandName === 'spawnteam') {
-      const equipe = interaction.options.getString('equipe', true);
-      await sendPterodactylCommand(\`customteam spawn \${equipe}\`);
-      return await interaction.reply({ content: \`Escouade personnalisée **\${equipe}** déployée sur le serveur !\` });
+      const equipe = interaction.options.getString('equipe', true).trim();
+      const cmd = await sendPterodactylCommand(\`/customteam spawn \${equipe}\`);
+      return await interaction.reply({ embeds: [baseEmbed('🪖 Équipe Custom Déployée', 0x8B5CF6).setDescription(\`Escouade **\${equipe}** lancée (\\\`\${cmd}\\\`).\`)] });
     }
 
     if (interaction.commandName === 'eventmode') {
       const actif = interaction.options.getBoolean('actif', true);
-      const nomEvent = interaction.options.getString('nom_event') || 'Événement Spécial';
+      const nomEvent = interaction.options.getString('nom_event') || 'Événement Spécial Site-19';
       if (actif) {
-        await sendPterodactylCommand(\`bc 10 <color=#FAFF86><b>[MODE EVENT ACTIVÉ]</b></color> \${nomEvent}\`);
-        await sendPterodactylCommand('cassie attention all personnel . special event mode activated');
+        await sendPterodactylCommand(\`/bc 12 <color=#FAFF86><b>[MODE EVENT ACTIVÉ]</b></color> \${nomEvent}\`);
+        await sendPterodactylCommand('/cassie attention all personnel . special event mode activated');
       } else {
-        await sendPterodactylCommand('bc 8 <color=#50C878><b>[FIN D’EVENT]</b></color> Retour au mode normal.');
+        await sendPterodactylCommand('/bc 8 <color=#50C878><b>[FIN D’EVENT]</b></color> Retour au mode normal.');
       }
-      return await interaction.reply({ content: \`Mode Event **\${actif ? 'ACTIVÉ' : 'DÉSACTIVÉ'}** (\${nomEvent}).\` });
+      return await interaction.reply({ embeds: [baseEmbed(actif ? '🔥 Mode Event ACTIVÉ' : '✅ Mode Event DÉSACTIVÉ', actif ? 0xF59E0B : 0x10B981).setDescription(\`**Événement :** \${nomEvent}\`)] });
+    }
+
+    if (interaction.commandName === 'round') {
+      const act = interaction.options.getString('action', true).toLowerCase();
+      const map = { restart: 'sr', lock: '/roundlock true', unlock: '/roundlock false', forcestart: 'forcestart' };
+      const cmd = await sendPterodactylCommand(map[act] || 'sr');
+      return await interaction.reply({ embeds: [baseEmbed('🔄 Contrôle Manche Exécuté', 0x06B6D4).setDescription(\`Action **\${act.toUpperCase()}** → \\\`\${cmd}\\\`\`)] });
+    }
+
+    if (interaction.commandName === 'warhead') {
+      const act = interaction.options.getString('action', true).toLowerCase();
+      const cmd = await sendPterodactylCommand(\`/warhead \${act}\`);
+      return await interaction.reply({ embeds: [baseEmbed('☢️ Alpha Warhead — ' + act.toUpperCase(), 0xDC143C).setDescription(\`Commande envoyée : \\\`\${cmd}\\\`\`)] });
+    }
+
+    if (interaction.commandName === 'logs') {
+      const sv = readLocalLogs('ServerLogs', 15);
+      const la = readLocalLogs('LocalAdminLogs', 15);
+      const lines = sv.lines.length > 0 ? sv.lines : la.lines;
+      const body = lines.length ? lines.join('\\n').slice(-1800) : 'Aucun fichier de log trouvé pour ce port.';
+      return await interaction.reply({ embeds: [baseEmbed(\`📜 Derniers Logs (\${sv.file || la.file || 'Live'})\`, 0x38BDF8).setDescription(\`\\\`\\\`\\\`\\n\${body}\\n\\\`\\\`\\\`\`)], ephemeral: true });
     }
 
     if (interaction.commandName === 'console') {
-      const cmd = interaction.options.getString('cmd', true);
-      await sendPterodactylCommand(cmd);
-      return await interaction.reply({ content: \`Commande envoyée à la console Pterodactyl : \\\`\${cmd}\\\`\` });
+      const raw = interaction.options.getString('cmd', true);
+      const cmd = await sendPterodactylCommand(raw);
+      return await interaction.reply({ embeds: [baseEmbed('💻 Commande Console Exécutée', 0xF59E0B).setDescription(\`Envoyé à LocalAdmin : \\\`\${cmd}\\\`\`)] });
     }
 
     if (interaction.commandName === 'power') {
-      const action = interaction.options.getString('action', true);
+      const action = interaction.options.getString('action', true).toLowerCase();
       await sendPowerSignal(action);
-      return await interaction.reply({ content: \`Signal d'alimentation **\${action.toUpperCase()}** envoyé au panel Pterodactyl.\` });
+      return await interaction.reply({ embeds: [baseEmbed(\`⚡ Signal Alimentation : \${action.toUpperCase()}\`, action === 'stop' ? 0xDC143C : 0x10B981).setDescription(\`Signal **\${action}** transmis au conteneur Pterodactyl \\\`\${CONFIG.PTERO_SERVER_ID}\\\`.\`)] });
     }
   } catch (err) {
-    return await interaction.reply({ content: \`Erreur API Pterodactyl : \${err.message}\`, ephemeral: true });
+    const errEmbed = baseEmbed('❌ Erreur d’Exécution', 0xDC143C).setDescription(\`\\\`\${err.message}\\\`\`);
+    if (interaction.deferred || interaction.replied) return await interaction.editReply({ embeds: [errEmbed] });
+    return await interaction.reply({ embeds: [errEmbed], ephemeral: true });
   }
 });
 
 client.login(CONFIG.DISCORD_TOKEN);
 `;
 }
+

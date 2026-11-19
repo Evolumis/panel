@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ShieldCheck,
   ExternalLink,
@@ -64,12 +64,12 @@ export default function App() {
   const [requireLoginGate, setRequireLoginGate] = useState(false);
   const [currentUser, setCurrentUser] = useState<AuthenticatedDiscordUser | null>({
     id: '985589556655054858',
-    username: 'nathaniel_dagenais',
-    globalName: 'Nathaniel Dagenais',
+    username: 'evolumis',
+    globalName: 'evolumis',
     avatarUrl: '',
     roleLabel: 'Fondateur O5 · scpsl.lumishost.com',
     authenticatedVia: 'staff_token',
-    loggedInAt: '20:22'
+    loggedInAt: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
   });
 
   // Listen for Discord OAuth2 Popup postMessage callback
@@ -105,8 +105,9 @@ export default function App() {
   const [serverState, setServerState] = useState<'running' | 'restarting' | 'offline'>('running');
   const [pteroUrl, setPteroUrl] = useState('https://panel.lumishost.com');
   const [pteroApiKey, setPteroApiKey] = useState('');
-  const [pteroServerId, setPteroServerId] = useState('f8a9c41b');
+  const [pteroServerId, setPteroServerId] = useState('283ba3e0');
   const [pteroEnvConfigured, setPteroEnvConfigured] = useState(false);
+  const [hasLocalContainer, setHasLocalContainer] = useState(false);
   const [discordWebhookUrl, setDiscordWebhookUrl] = useState('');
   const [serverPort, setServerPort] = useState('1031');
 
@@ -119,6 +120,9 @@ export default function App() {
   const [apiStatusMessage, setApiStatusMessage] = useState<string | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [isSyncingApi, setIsSyncingApi] = useState(false);
+  const [storageEngine, setStorageEngine] = useState<'mysql' | 'json'>('json');
+  const [stateHydrated, setStateHydrated] = useState(false);
+  const saveTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -127,6 +131,7 @@ export default function App() {
         if (d.user) setCurrentUser(d.user);
         if (d.pteroUrl) setPteroUrl(d.pteroUrl);
         if (d.pteroServerId) setPteroServerId(d.pteroServerId);
+        if (d.hasLocalContainer) setHasLocalContainer(true);
         if (d.pteroConfigured) {
           setPteroEnvConfigured(true);
           fetch('/api/ptero/status', {
@@ -134,7 +139,7 @@ export default function App() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               panelUrl: d.pteroUrl || 'https://panel.lumishost.com',
-              serverId: d.pteroServerId || ''
+              serverId: d.pteroServerId || '283ba3e0'
             })
           })
             .then((sr) => sr.json())
@@ -155,7 +160,7 @@ export default function App() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               panelUrl: d.pteroUrl || 'https://panel.lumishost.com',
-              serverId: d.pteroServerId || '',
+              serverId: d.pteroServerId || '283ba3e0',
               port: '1031'
             })
           })
@@ -224,6 +229,83 @@ export default function App() {
 
   // Real Console Logs synced from Pterodactyl / executed commands
   const [consoleLogs, setConsoleLogs] = useState<ConsoleLogEntry[]>([]);
+
+  // Hydrate persisted state from MySQL / local disk JSON on mount
+  useEffect(() => {
+    fetch('/api/state')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.storageEngine) setStorageEngine(data.storageEngine);
+        const st = data?.state;
+        if (st && typeof st === 'object') {
+          if (Array.isArray(st.staffList) && st.staffList.length > 0) setStaffList(st.staffList);
+          if (Array.isArray(st.sanctions)) setSanctions(st.sanctions);
+          if (Array.isArray(st.customTeams) && st.customTeams.length > 0) setCustomTeams(st.customTeams);
+          if (Array.isArray(st.vipTiers) && st.vipTiers.length > 0) setVipTiers(st.vipTiers);
+          if (Array.isArray(st.panelRoleMatrix) && st.panelRoleMatrix.length > 0) setPanelRoleMatrix(st.panelRoleMatrix);
+          if (typeof st.serverNameRich === 'string' && st.serverNameRich) setServerNameRich(st.serverNameRich);
+          if (typeof st.pastebinId === 'string' && st.pastebinId) setPastebinId(st.pastebinId);
+          if (typeof st.discordInvite === 'string' && st.discordInvite) setDiscordInvite(st.discordInvite);
+          if (Array.isArray(st.afficheSections) && st.afficheSections.length > 0) setAfficheSections(st.afficheSections);
+          if (typeof st.discordWebhookUrl === 'string') setDiscordWebhookUrl(st.discordWebhookUrl);
+          if (typeof st.pteroUrl === 'string' && st.pteroUrl) setPteroUrl(st.pteroUrl);
+          if (typeof st.pteroServerId === 'string' && st.pteroServerId) setPteroServerId(st.pteroServerId);
+          if (typeof st.serverPort === 'string' && st.serverPort) setServerPort(st.serverPort);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setStateHydrated(true));
+  }, []);
+
+  // Debounced auto-save to MySQL + disk JSON whenever domain state changes
+  useEffect(() => {
+    if (!stateHydrated) return;
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(() => {
+      fetch('/api/state', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          staffList,
+          sanctions,
+          customTeams,
+          vipTiers,
+          panelRoleMatrix,
+          serverNameRich,
+          pastebinId,
+          discordInvite,
+          afficheSections,
+          discordWebhookUrl,
+          pteroUrl,
+          pteroServerId,
+          serverPort
+        })
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d?.savedMysql) setStorageEngine('mysql');
+        })
+        .catch(() => {});
+    }, 600);
+    return () => {
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    };
+  }, [
+    stateHydrated,
+    staffList,
+    sanctions,
+    customTeams,
+    vipTiers,
+    panelRoleMatrix,
+    serverNameRich,
+    pastebinId,
+    discordInvite,
+    afficheSections,
+    discordWebhookUrl,
+    pteroUrl,
+    pteroServerId,
+    serverPort
+  ]);
 
   const appendLog = (text: string, origin = 'CONSOLE', level: ConsoleLogEntry['level'] = 'command') => {
     const time = new Date().toLocaleTimeString('fr-FR', {
@@ -323,9 +405,9 @@ export default function App() {
     setApiError(null);
     setApiStatusMessage(null);
 
-    if (!pteroApiKey.trim() && !pteroEnvConfigured) {
+    if (!pteroApiKey.trim() && !pteroEnvConfigured && !hasLocalContainer) {
       setApiError(
-        'Entrez votre Clé API Client Pterodactyl (ptlc_...) pour écrire automatiquement les fichiers dans /home/container/.config/SCP Secret Laboratory/config/1031/.'
+        'Entrez votre Clé API Client Pterodactyl (ptlc_...) dans l’onglet Développeur pour écrire automatiquement les fichiers dans /home/container/.config/SCP Secret Laboratory/config/1031/.'
       );
       return;
     }
@@ -402,19 +484,21 @@ export default function App() {
         appendLog(`Fichier synchronisé sur LumisHost : ${file.path}`, 'API FILES', 'info');
       }
 
-      await fetch('/api/ptero/command', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          panelUrl: pteroUrl,
-          apiKey: pteroApiKey,
-          serverId: pteroServerId,
-          command: 'reload remoteadmin'
-        })
-      });
+      if (pteroApiKey.trim() || pteroEnvConfigured) {
+        await fetch('/api/ptero/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            panelUrl: pteroUrl,
+            apiKey: pteroApiKey,
+            serverId: pteroServerId,
+            command: 'config reload'
+          })
+        });
+      }
 
       setApiStatusMessage(
-        `Synchronisation réussie sur le port ${serverPort} : config_remoteadmin.txt, config_gameplay.txt, CustomTeams.yml et VipAdvantages.yml écrits !`
+        `Synchronisation réussie sur le port ${serverPort} : config_remoteadmin.txt, config_gameplay.txt, CustomTeams.yml et VipAdvantages.yml écrits ! (Si le serveur est déjà démarré, redémarrez-le pour appliquer les nouveaux rôles RemoteAdmin.)`
       );
       await notifyDiscordWebhook(
         'Synchronisation Configurations SCP:SL → LumisHost',
@@ -427,6 +511,61 @@ export default function App() {
       appendLog(`Erreur écriture fichiers API : ${msg}`, 'API ERROR', 'warn');
     } finally {
       setIsSyncingApi(false);
+    }
+  };
+
+  const grantInGameRole = async (
+    targetId: string,
+    roleId: string,
+    playerName: string,
+    nextStaffList: StaffMember[] = staffList,
+    nextVipTiers: VipTier[] = vipTiers,
+    nextPanelRoleMatrix: WebPanelRolePermissionMatrix[] = panelRoleMatrix
+  ) => {
+    setApiError(null);
+    setApiStatusMessage(null);
+    const remoteAdminContent = generateRemoteAdminConfig(
+      nextStaffList,
+      nextVipTiers,
+      nextPanelRoleMatrix
+    );
+    const vipAdvantagesContent = generateVipAdvantagesYaml(nextVipTiers);
+
+    appendLog(
+      `Attribution en jeu -> ${playerName || targetId} (${targetId}) => rôle ${roleId}`,
+      'REMOTEADMIN',
+      'command'
+    );
+
+    try {
+      const resp = await fetch('/api/ptero/grant-role', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          panelUrl: pteroUrl,
+          apiKey: pteroApiKey,
+          serverId: pteroServerId,
+          port: serverPort,
+          targetId,
+          roleId,
+          playerName,
+          remoteAdminContent,
+          vipAdvantagesContent
+        })
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.ok) {
+        const msg = data.error || 'Échec attribution des permissions en jeu.';
+        setApiError(msg);
+        appendLog(`Erreur attribution rôle : ${msg}`, 'API WARN', 'warn');
+      } else {
+        setApiStatusMessage(data.message || `Grade ${roleId} appliqué à ${targetId}.`);
+        appendLog(data.message || `Grade ${roleId} appliqué à ${targetId}.`, 'REMOTEADMIN', 'info');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erreur réseau';
+      setApiError(`Erreur lors de l'attribution en jeu : ${msg}`);
+      appendLog(`Erreur attribution rôle : ${msg}`, 'API WARN', 'warn');
     }
   };
 
@@ -449,16 +588,23 @@ export default function App() {
             command: cmd
           })
         });
+        const data = await resp.json().catch(() => ({}));
         if (!resp.ok) {
-          const errData = await resp.json();
-          appendLog(`Retour API Pterodactyl : ${errData.error}`, 'API WARN', 'warn');
+          const errMsg = data.error || `Erreur console Pterodactyl (${resp.status})`;
+          setApiError(errMsg);
+          appendLog(`Retour API Pterodactyl : ${errMsg}`, 'API WARN', 'warn');
         } else {
-          appendLog(`Commande exécutée sur LumisHost (${pteroServerId}).`, 'API LUMISHOST', 'info');
+          appendLog(`Commande exécutée en jeu : ${data.command || cmd}`, 'API LUMISHOST', 'info');
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Erreur réseau';
+        setApiError(`Erreur API Pterodactyl : ${msg}`);
         appendLog(`Erreur API Pterodactyl : ${msg}`, 'API WARN', 'warn');
       }
+    } else {
+      setApiError(
+        'Clé API Client Pterodactyl (ptlc_...) manquante : configurez PTERO_CLIENT_API_KEY dans l’onglet Développeur ou les variables Startup Pterodactyl pour envoyer des commandes en jeu.'
+      );
     }
 
     if (discordWebhookUrl.trim()) {
@@ -467,6 +613,67 @@ export default function App() {
         `Exécuté par **${currentUser?.globalName || 'Staff'}** :\n\`\`\`${cmd}\`\`\``,
         '#D97706'
       );
+    }
+  };
+
+  const executeSanction = async (params: {
+    type: 'BAN' | 'KICK' | 'WARN' | 'MUTE' | 'UNBAN';
+    targetName: string;
+    targetSteamId: string;
+    playerId?: number | string;
+    duration?: string;
+    reason: string;
+  }) => {
+    setApiError(null);
+    setApiStatusMessage(null);
+    const modName = currentUser?.globalName
+      ? `${currentUser.globalName} (${activeRolePermissions.label})`
+      : 'evolumis (RemoteAdmin Web)';
+
+    appendLog(
+      `Sanction ${params.type} -> ${params.targetName || params.targetSteamId} (${params.duration || params.type}) : ${params.reason}`,
+      `SANCTION ${params.type}`,
+      'command'
+    );
+
+    try {
+      const resp = await fetch('/api/ptero/sanction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          panelUrl: pteroUrl,
+          apiKey: pteroApiKey,
+          serverId: pteroServerId,
+          port: serverPort,
+          webhookUrl: discordWebhookUrl,
+          moderator: modName,
+          ...params
+        })
+      });
+      const data = await resp.json();
+      if (data.sanction) {
+        setSanctions((prev) => [data.sanction, ...prev.filter((s) => s.id !== data.sanction.id)]);
+      } else if (params.type === 'UNBAN') {
+        setSanctions((prev) =>
+          prev.map((s) =>
+            s.targetSteamId.toLowerCase() === params.targetSteamId.toLowerCase()
+              ? { ...s, active: false }
+              : s
+          )
+        );
+      }
+
+      if (!resp.ok || data.error) {
+        setApiError(data.error || data.message || 'Échec de la sanction en jeu.');
+        appendLog(`Retour Sanction : ${data.error || data.message}`, 'API WARN', 'warn');
+      } else {
+        setApiStatusMessage(data.message || `Sanction ${params.type} exécutée.`);
+        appendLog(data.message || `Sanction ${params.type} exécutée.`, 'SANCTION OK', 'info');
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erreur réseau';
+      setApiError(`Erreur lors de l'exécution de la sanction : ${msg}`);
+      appendLog(`Erreur sanction : ${msg}`, 'API WARN', 'warn');
     }
   };
 
@@ -552,9 +759,9 @@ export default function App() {
             <button
               onClick={() =>
                 setCurrentUser({
-                  id: '482910394819203112',
-                  username: 'nathaniel_dagenais',
-                  globalName: 'Nathaniel Dagenais',
+                  id: '985589556655054858',
+                  username: 'evolumis',
+                  globalName: 'evolumis',
                   avatarUrl: '',
                   roleLabel: 'Fondateur O5 · scpsl.lumishost.com',
                   authenticatedVia: 'staff_token',
@@ -564,7 +771,7 @@ export default function App() {
               className="w-full px-4 py-2.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors flex items-center justify-center gap-2"
             >
               <Lock className="w-3.5 h-3.5 text-amber-400" />
-              Accès Direct Fondateur (Nathaniel Dagenais)
+              Accès Direct Fondateur (evolumis)
             </button>
           </div>
         </div>
@@ -702,6 +909,8 @@ export default function App() {
             <span>Serveur : <strong className="text-emerald-400">play.lumishost.com:{serverPort}</strong></span>
             <span className="text-slate-600">·</span>
             <span>Statut : <strong className="text-white">{serverState.toUpperCase()}</strong></span>
+            <span className="text-slate-600">·</span>
+            <span>Sauvegarde : <strong className={storageEngine === 'mysql' ? 'text-emerald-400' : 'text-cyan-300'}>{storageEngine === 'mysql' ? 'MySQL' : 'Disque Local'}</strong></span>
             {eventActive && (
               <>
                 <span className="text-slate-600">·</span>
@@ -761,11 +970,34 @@ export default function App() {
 
       {/* Main Content Container (1380px max-w) */}
       <main className="flex-1 w-full max-w-[1380px] mx-auto px-4 sm:px-6 py-6">
+        {(apiStatusMessage || apiError) && (
+          <div
+            className={`mb-5 px-4 py-3 rounded-xl border text-xs flex items-center justify-between gap-4 ${
+              apiError
+                ? 'bg-rose-500/10 border-rose-500/40 text-rose-200'
+                : 'bg-emerald-500/10 border-emerald-500/40 text-emerald-200'
+            }`}
+          >
+            <div className="font-medium">{apiError || apiStatusMessage}</div>
+            <button
+              onClick={() => {
+                setApiError(null);
+                setApiStatusMessage(null);
+              }}
+              className="px-2 py-0.5 rounded bg-slate-900/70 hover:bg-slate-800 text-slate-300 shrink-0"
+            >
+              Fermer
+            </button>
+          </div>
+        )}
         {/* 1. IN-GAME REMOTEADMIN & FACILITY CONTROL */}
         {activeTab === 'ingame' && (
           <InGameManagementPanel
             serverState={serverState}
             serverPort={serverPort}
+            pteroUrl={pteroUrl}
+            pteroApiKey={pteroApiKey}
+            pteroServerId={pteroServerId}
             customTeams={customTeams}
             vipTiers={vipTiers}
             staffList={staffList}
@@ -773,6 +1005,7 @@ export default function App() {
             setSanctions={setSanctions}
             activeRolePermissions={activeRolePermissions}
             onExecutePteroCommand={pushConsoleCommand}
+            onExecuteSanction={executeSanction}
             onPowerAction={handlePowerAction}
           />
         )}
@@ -791,6 +1024,10 @@ export default function App() {
             pteroServerId={pteroServerId}
             serverPort={serverPort}
             onExecutePteroCommand={pushConsoleCommand}
+            onExecuteSanction={executeSanction}
+            onGrantInGameRole={(targetId, roleId, name, nextStaff) =>
+              grantInGameRole(targetId, roleId, name, nextStaff, vipTiers, panelRoleMatrix)
+            }
           />
         )}
 
@@ -851,6 +1088,9 @@ export default function App() {
                 setVipTiers={setVipTiers}
                 staffList={staffList}
                 onExecutePteroCommand={pushConsoleCommand}
+                onGrantInGameRole={(targetId, roleId, name, nextVips) =>
+                  grantInGameRole(targetId, roleId, name, staffList, nextVips, panelRoleMatrix)
+                }
               />
             )}
 
@@ -886,6 +1126,7 @@ export default function App() {
               setVipTiers={setVipTiers}
               onExecutePteroCommand={pushConsoleCommand}
               onPushAllConfigsToPterodactyl={handlePushAllConfigsToPterodactyl}
+              onGrantInGameRole={grantInGameRole}
               serverPort={serverPort}
             />
           ) : (

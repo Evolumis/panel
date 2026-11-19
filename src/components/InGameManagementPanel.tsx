@@ -36,6 +36,9 @@ export interface ActiveInGamePlayer {
 interface InGameManagementPanelProps {
   serverState: 'running' | 'restarting' | 'offline';
   serverPort: string;
+  pteroUrl: string;
+  pteroApiKey: string;
+  pteroServerId: string;
   customTeams: CustomTeam[];
   vipTiers: VipTier[];
   staffList: StaffMember[];
@@ -43,6 +46,14 @@ interface InGameManagementPanelProps {
   setSanctions: React.Dispatch<React.SetStateAction<SanctionRecord[]>>;
   activeRolePermissions?: WebPanelRolePermissionMatrix;
   onExecutePteroCommand: (cmd: string, origin?: string) => void;
+  onExecuteSanction: (params: {
+    type: 'BAN' | 'KICK' | 'WARN' | 'MUTE' | 'UNBAN';
+    targetName: string;
+    targetSteamId: string;
+    playerId?: number | string;
+    duration?: string;
+    reason: string;
+  }) => Promise<void> | void;
   onPowerAction: (signal: 'start' | 'restart' | 'stop') => void;
 }
 
@@ -79,11 +90,14 @@ const TELEPORT_LOCATIONS = [
 export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
   serverState,
   serverPort,
+  pteroUrl,
+  pteroApiKey,
+  pteroServerId,
   customTeams,
-  sanctions,
-  setSanctions,
+  staffList,
   activeRolePermissions,
-  onExecutePteroCommand
+  onExecutePteroCommand,
+  onExecuteSanction
 }) => {
   const canUseHeavyActions = activeRolePermissions
     ? activeRolePermissions.canUseHeavyInGameActions
@@ -94,65 +108,103 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
   const [selectedPlayerId, setSelectedPlayerId] = useState<number>(0);
   const [manualTargetSteamId, setManualTargetSteamId] = useState('');
   const [factionFilter, setFactionFilter] = useState<'ALL' | ActiveInGamePlayer['faction']>('ALL');
+  const [isRefreshingPlayers, setIsRefreshingPlayers] = useState(false);
 
-  const syncRealPlayersFromTelemetry = async () => {
+  const inferFactionFromRole = (roleName: string): { faction: ActiveInGamePlayer['faction']; color: string } => {
+    const r = roleName.toLowerCase();
+    if (r.includes('scp')) return { faction: 'SCP', color: '#F43F5E' };
+    if (r.includes('ntf') || r.includes('mtf') || r.includes('guard')) return { faction: 'MTF', color: '#38BDF8' };
+    if (r.includes('chaos')) return { faction: 'CHAOS', color: '#22C55E' };
+    if (r.includes('classd') || r.includes('class-d')) return { faction: 'CLASSD', color: '#FB923C' };
+    if (r.includes('scient')) return { faction: 'SCIENTIST', color: '#FACC15' };
+    if (r.includes('tutorial')) return { faction: 'STAFF', color: '#EC4899' };
+    return { faction: 'STAFF', color: '#38BDF8' };
+  };
+
+  const syncRealPlayersFromServer = async (triggerList = true) => {
+    setIsRefreshingPlayers(true);
     try {
-      const resp = await fetch('/api/telemetry/events');
+      const resp = await fetch('/api/ptero/players/live', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          panelUrl: pteroUrl,
+          apiKey: pteroApiKey,
+          serverId: pteroServerId,
+          port: serverPort,
+          triggerList
+        })
+      });
       if (!resp.ok) return;
       const data = await resp.json();
-      const events = Array.isArray(data.events) ? data.events : [];
-      const activeMap = new Map<string, ActiveInGamePlayer>();
-      let seq = 1;
-      [...events].reverse().forEach((ev: {
-        category?: string;
-        killerName?: string;
-        killerSteamId?: string;
-        killerRole?: string;
-        victimName?: string;
-        victimSteamId?: string;
-        victimRole?: string;
-        zone?: string;
-      }) => {
-        if (ev.category === 'DISCONNECT' && ev.killerSteamId) {
-          activeMap.delete(ev.killerSteamId);
-        } else if (ev.killerSteamId) {
-          const prev = activeMap.get(ev.killerSteamId);
-          activeMap.set(ev.killerSteamId, {
-            id: prev?.id || seq++,
-            name: ev.killerName || prev?.name || ev.killerSteamId,
-            steamId: ev.killerSteamId,
-            role: ev.killerRole || prev?.role || 'Connecté',
-            faction: 'STAFF',
-            roleColor: '#38BDF8',
-            hp: prev?.hp || 100,
-            maxHp: prev?.maxHp || 100,
-            ahp: prev?.ahp || 0,
+      const online = Array.isArray(data.onlinePlayers) ? data.onlinePlayers : [];
+
+      const mapped: ActiveInGamePlayer[] = online.map(
+        (p: { id: number; name: string; steamId: string; role?: string }) => {
+          const staffEntry = staffList.find(
+            (s) => s.steamId.toLowerCase() === String(p.steamId || '').toLowerCase()
+          );
+          const roleStr = p.role || 'Connecté';
+          const { faction, color } = inferFactionFromRole(roleStr);
+          return {
+            id: Number(p.id) || 1,
+            name: p.name || p.steamId,
+            steamId: p.steamId,
+            role: roleStr,
+            faction,
+            roleColor: color,
+            hp: 100,
+            maxHp: 100,
+            ahp: 0,
             zone: 'Surface Zone',
-            badgeText: 'JOUEUR RÉEL',
-            badgeHex: '#38BDF8',
-            ping: prev?.ping || 20,
+            badgeText: staffEntry ? staffEntry.badgeText : 'JOUEUR RÉEL',
+            badgeHex: staffEntry ? '#F59E0B' : '#38BDF8',
+            ping: 24,
             godMode: false,
             noclip: false,
             bypassMode: false,
             voiceMuted: false,
             intercomMuted: false,
-            inventory: prev?.inventory || []
-          });
+            inventory: []
+          };
         }
-      });
-      const list = Array.from(activeMap.values());
-      setPlayers(list);
-      if (list.length > 0 && !list.some((p) => p.id === selectedPlayerId)) {
-        setSelectedPlayerId(list[0].id);
+      );
+
+      setPlayers((prev) =>
+        mapped.map((fresh) => {
+          const old = prev.find((o) => o.steamId === fresh.steamId);
+          return old
+            ? {
+                ...fresh,
+                godMode: old.godMode,
+                noclip: old.noclip,
+                bypassMode: old.bypassMode,
+                voiceMuted: old.voiceMuted,
+                intercomMuted: old.intercomMuted,
+                inventory: old.inventory.length ? old.inventory : fresh.inventory,
+                zone: old.zone
+              }
+            : fresh;
+        })
+      );
+
+      if (mapped.length > 0 && !mapped.some((p) => p.id === selectedPlayerId)) {
+        setSelectedPlayerId(mapped[0].id);
       }
     } catch {
       // ignore fetch error
+    } finally {
+      setIsRefreshingPlayers(false);
     }
   };
 
   useEffect(() => {
-    syncRealPlayersFromTelemetry();
-  }, []);
+    syncRealPlayersFromServer(true);
+    const timer = window.setInterval(() => {
+      syncRealPlayersFromServer(false);
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [pteroServerId, serverPort]);
 
   // Facility live state
   const [warheadState, setWarheadState] = useState<'STANDBY' | 'COUNTDOWN' | 'LOCKED' | 'DETONATED'>('STANDBY');
@@ -190,7 +242,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
     setPlayers((prev) => prev.map((p) => (p.id === id ? updater(p) : p)));
   };
 
-  // 1. Forceclass Vanilla Role
+  // 1. Forceclass Vanilla Role (uses numeric PlayerID + '/' prefix for SCP:SL LocalAdmin)
   const handleForceVanillaRole = () => {
     if (!canUseHeavyActions) return;
     const roleObj = VANILLA_ROLES.find((r) => r.id === chosenRoleId);
@@ -204,7 +256,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
       maxHp: roleObj.hp
     }));
     onExecutePteroCommand(
-      `forceclass ${selectedPlayer.steamId} ${roleObj.id}`,
+      `/forceclass ${selectedPlayer.id} ${roleObj.id}`,
       'REMOTEADMIN IN-GAME'
     );
   };
@@ -224,7 +276,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
       inventory: [...team.inventory]
     }));
     onExecutePteroCommand(
-      `customteam spawnplayer ${selectedPlayer.steamId} ${team.roleKey}`,
+      `/customteam spawnplayer ${selectedPlayer.id} ${team.roleKey}`,
       'REMOTEADMIN IN-GAME'
     );
   };
@@ -237,7 +289,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
       inventory: p.inventory.length < 8 ? [...p.inventory, chosenItemId] : p.inventory
     }));
     onExecutePteroCommand(
-      `give ${selectedPlayer.steamId} ${chosenItemId}`,
+      `/give ${selectedPlayer.id} ${chosenItemId}`,
       'REMOTEADMIN IN-GAME'
     );
   };
@@ -245,7 +297,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
   const handleClearInventory = () => {
     if (!canUseHeavyActions || !selectedPlayer) return;
     updatePlayer(selectedPlayer.id, (p) => ({ ...p, inventory: [] }));
-    onExecutePteroCommand(`clear ${selectedPlayer.steamId}`, 'REMOTEADMIN IN-GAME');
+    onExecutePteroCommand(`/clear ${selectedPlayer.id}`, 'REMOTEADMIN IN-GAME');
   };
 
   const handleGiveStaffPack = (items: string[], packLabel: string) => {
@@ -255,10 +307,11 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
       ...p,
       inventory: sliced
     }));
-    onExecutePteroCommand(
-      `clear ${selectedPlayer.steamId} && give ${selectedPlayer.steamId} ${sliced.join(' ')}`,
-      `KIT STAFF (${packLabel})`
-    );
+    const cmdBatch = [
+      `/clear ${selectedPlayer.id}`,
+      ...sliced.map((it) => `/give ${selectedPlayer.id} ${it}`)
+    ].join('\n');
+    onExecutePteroCommand(cmdBatch, `KIT STAFF (${packLabel})`);
   };
 
   // 4. Player Toggles (Godmode, Noclip, Bypass, Heal, Set HP, Teleport, Mute)
@@ -270,8 +323,23 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
     if (flag !== 'voiceMuted' && flag !== 'intercomMuted' && !canUseHeavyActions) return;
     const nextVal = !selectedPlayer[flag];
     updatePlayer(selectedPlayer.id, (p) => ({ ...p, [flag]: nextVal }));
+
+    if (flag === 'voiceMuted') {
+      onExecutePteroCommand(
+        nextVal ? `/mute ${selectedPlayer.id}` : `/unmute ${selectedPlayer.id}`,
+        'REMOTEADMIN IN-GAME'
+      );
+      return;
+    }
+    if (flag === 'intercomMuted') {
+      onExecutePteroCommand(
+        nextVal ? `/imute ${selectedPlayer.id}` : `/iunmute ${selectedPlayer.id}`,
+        'REMOTEADMIN IN-GAME'
+      );
+      return;
+    }
     onExecutePteroCommand(
-      `${cmdName} ${selectedPlayer.steamId} ${nextVal ? 'on' : 'off'}`,
+      `/${cmdName} ${selectedPlayer.id} ${nextVal ? '1' : '0'}`,
       'REMOTEADMIN IN-GAME'
     );
   };
@@ -284,7 +352,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
       maxHp: Math.max(p.maxHp, customHpInput)
     }));
     onExecutePteroCommand(
-      `hp ${selectedPlayer.steamId} ${customHpInput}`,
+      `/hp ${selectedPlayer.id} ${customHpInput}`,
       'REMOTEADMIN IN-GAME'
     );
   };
@@ -295,7 +363,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
     if (!loc) return;
     updatePlayer(selectedPlayer.id, (p) => ({ ...p, zone: loc.zone }));
     onExecutePteroCommand(
-      `goto ${selectedPlayer.steamId} ${loc.id}`,
+      `/goto ${selectedPlayer.id} ${loc.id}`,
       'REMOTEADMIN IN-GAME'
     );
   };
@@ -303,46 +371,24 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
   const handleQuickZoneTeleport = (zone: ActiveInGamePlayer['zone'], cmdId: string) => {
     if (!canUseHeavyActions || !selectedPlayer) return;
     updatePlayer(selectedPlayer.id, (p) => ({ ...p, zone }));
-    onExecutePteroCommand(`goto ${selectedPlayer.steamId} ${cmdId}`, 'RADAR SITE-19');
+    onExecutePteroCommand(`/goto ${selectedPlayer.id} ${cmdId}`, 'RADAR SITE-19');
   };
 
-  // 5. Direct In-Game Sanctions
+  // 5. Direct In-Game Sanctions via /api/ptero/sanction (/ban + /oban + /kick + /pbc + MySQL)
   const handleInGameSanction = (type: 'WARN' | 'KICK' | 'BAN') => {
     if (!selectedPlayer) return;
     if (type === 'BAN' && !canBanPlayers) return;
-    const nowTime = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    const nowDate = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
-    const record: SanctionRecord = {
-      id: `SAN-${910 + sanctions.length}`,
+
+    onExecuteSanction({
+      type,
       targetName: selectedPlayer.name,
       targetSteamId: selectedPlayer.steamId,
-      type,
-      reason: quickSanctionReason,
-      duration: type === 'BAN' ? quickBanDuration : type === 'KICK' ? 'Instantané' : 'Avertissement',
-      moderator: activeRolePermissions
-        ? `${activeRolePermissions.label} (RemoteAdmin Web)`
-        : 'Nathaniel Dagenais (RemoteAdmin Web)',
-      source: 'RemoteAdmin',
-      timestamp: `${nowDate} · ${nowTime}`,
-      active: type !== 'KICK'
-    };
-    setSanctions((prev) => [record, ...prev]);
+      playerId: selectedPlayer.id,
+      duration: type === 'BAN' ? quickBanDuration : undefined,
+      reason: quickSanctionReason
+    });
 
-    if (type === 'BAN') {
-      onExecutePteroCommand(
-        `ban ${selectedPlayer.steamId} "${quickBanDuration}" "${quickSanctionReason}"`,
-        'SANCTION IN-GAME'
-      );
-      setPlayers((prev) => prev.filter((p) => p.id !== selectedPlayer.id));
-      if (players.length > 1) {
-        const remaining = players.filter((p) => p.id !== selectedPlayer.id);
-        setSelectedPlayerId(remaining[0].id);
-      }
-    } else if (type === 'KICK') {
-      onExecutePteroCommand(
-        `kick ${selectedPlayer.steamId} "${quickSanctionReason}"`,
-        'SANCTION IN-GAME'
-      );
+    if (type === 'BAN' || type === 'KICK') {
       setPlayers((prev) => prev.filter((p) => p.id !== selectedPlayer.id));
       if (players.length > 1) {
         const remaining = players.filter((p) => p.id !== selectedPlayer.id);
@@ -350,10 +396,6 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
       }
     } else {
       setLastBroadcastBanner(`[AVERTISSEMENT -> ${selectedPlayer.name}] ${quickSanctionReason}`);
-      onExecutePteroCommand(
-        `pbc ${selectedPlayer.steamId} 10 <color=#DC143C><b>[AVERTISSEMENT STAFF]</b></color> ${quickSanctionReason}`,
-        'SANCTION IN-GAME'
-      );
     }
   };
 
@@ -473,7 +515,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
         onQuickHealSelected={() => {
           if (!canUseHeavyActions || !selectedPlayer) return;
           updatePlayer(selectedPlayer.id, (p) => ({ ...p, hp: p.maxHp }));
-          onExecutePteroCommand(`heal ${selectedPlayer.steamId}`, 'HUD IN-GAME');
+          onExecutePteroCommand(`/heal ${selectedPlayer.id}`, 'HUD IN-GAME');
         }}
       />
 
@@ -494,14 +536,12 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  syncRealPlayersFromTelemetry();
-                  onExecutePteroCommand('list', 'REMOTEADMIN LIST');
-                }}
-                className="px-2.5 py-1 text-xs font-semibold rounded bg-slate-950 hover:bg-slate-800 text-cyan-300 border border-slate-700 transition-colors flex items-center gap-1"
+                disabled={isRefreshingPlayers}
+                onClick={() => syncRealPlayersFromServer(true)}
+                className="px-2.5 py-1 text-xs font-semibold rounded bg-slate-950 hover:bg-slate-800 text-cyan-300 border border-slate-700 transition-colors flex items-center gap-1 disabled:opacity-50"
               >
-                <RefreshCw className="w-3 h-3" />
-                Rafraîchir (`list`)
+                <RefreshCw className={`w-3 h-3 ${isRefreshingPlayers ? 'animate-spin' : ''}`} />
+                {isRefreshingPlayers ? 'Lecture list...' : 'Rafraîchir (list)'}
               </button>
               <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-950 rounded-lg border border-slate-800">
                 {(['ALL', 'SCP', 'MTF', 'CUSTOM', 'CHAOS', 'CLASSD'] as const).map((fac) => (
@@ -745,7 +785,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
                   onClick={() => {
                     if (!canUseHeavyActions) return;
                     updatePlayer(selectedPlayer.id, (p) => ({ ...p, hp: p.maxHp }));
-                    onExecutePteroCommand(`heal ${selectedPlayer.steamId}`, 'REMOTEADMIN IN-GAME');
+                    onExecutePteroCommand(`/heal ${selectedPlayer.id}`, 'REMOTEADMIN IN-GAME');
                   }}
                   className={`py-2 px-2.5 text-xs font-semibold rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 transition-colors ${
                     !canUseHeavyActions ? 'opacity-50 cursor-not-allowed' : ''
@@ -1007,7 +1047,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
                   onClick={() => {
                     setLastBroadcastBanner(`[MESSAGE STAFF -> ${selectedPlayer.name}] ${privateHintText}`);
                     onExecutePteroCommand(
-                      `pbc ${selectedPlayer.steamId} 8 <color=#00FFFF><b>[MESSAGE STAFF]</b></color> ${privateHintText}`,
+                      `/pbc ${selectedPlayer.id} 8 <color=#00FFFF><b>[MESSAGE STAFF]</b></color> ${privateHintText}`,
                       'REMOTEADMIN IN-GAME'
                     );
                   }}
@@ -1074,38 +1114,90 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
             <p className="text-xs text-slate-400">
               Entrez un vrai SteamID64 (`76561198...@steam`) ou son ID en jeu (`1`, `2`...) pour exécuter des commandes RemoteAdmin en direct.
             </p>
-            <div className="flex flex-wrap gap-2">
-              <input
-                type="text"
-                value={manualTargetSteamId}
-                onChange={(e) => setManualTargetSteamId(e.target.value)}
-                placeholder="SteamID64 réel (ex: 76561198...@steam) ou ID joueur"
-                className="flex-1 px-3 py-2 text-xs font-mono rounded-lg bg-slate-950 border border-slate-800 text-amber-300"
-              />
-              <button
-                type="button"
-                disabled={!manualTargetSteamId.trim() || !canUseHeavyActions}
-                onClick={() => onExecutePteroCommand(`god ${manualTargetSteamId.trim()} on`, 'REMOTEADMIN IN-GAME')}
-                className="px-3 py-2 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950"
-              >
-                GodMode
-              </button>
-              <button
-                type="button"
-                disabled={!manualTargetSteamId.trim() || !canUseHeavyActions}
-                onClick={() => onExecutePteroCommand(`give ${manualTargetSteamId.trim()} ${chosenItemId}`, 'REMOTEADMIN IN-GAME')}
-                className="px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950"
-              >
-                Give {chosenItemId}
-              </button>
-              <button
-                type="button"
-                disabled={!manualTargetSteamId.trim() || !canUseHeavyActions}
-                onClick={() => onExecutePteroCommand(`forceclass ${manualTargetSteamId.trim()} ${chosenRoleId}`, 'REMOTEADMIN IN-GAME')}
-                className="px-3 py-2 text-xs font-semibold rounded-lg bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 text-slate-950"
-              >
-                Forceclass
-              </button>
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  value={manualTargetSteamId}
+                  onChange={(e) => setManualTargetSteamId(e.target.value)}
+                  placeholder="ID numérique (ex: 1) ou SteamID64 (76561199...@steam)"
+                  className="flex-1 px-3 py-2 text-xs font-mono rounded-lg bg-slate-950 border border-slate-800 text-amber-300"
+                />
+                <button
+                  type="button"
+                  disabled={!manualTargetSteamId.trim() || !canUseHeavyActions}
+                  onClick={() => onExecutePteroCommand(`/god ${manualTargetSteamId.trim()} 1`, 'REMOTEADMIN IN-GAME')}
+                  className="px-3 py-2 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950"
+                >
+                  GodMode
+                </button>
+                <button
+                  type="button"
+                  disabled={!manualTargetSteamId.trim() || !canUseHeavyActions}
+                  onClick={() => onExecutePteroCommand(`/give ${manualTargetSteamId.trim()} ${chosenItemId}`, 'REMOTEADMIN IN-GAME')}
+                  className="px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950"
+                >
+                  Give {chosenItemId}
+                </button>
+                <button
+                  type="button"
+                  disabled={!manualTargetSteamId.trim() || !canUseHeavyActions}
+                  onClick={() => onExecutePteroCommand(`/forceclass ${manualTargetSteamId.trim()} ${chosenRoleId}`, 'REMOTEADMIN IN-GAME')}
+                  className="px-3 py-2 text-xs font-semibold rounded-lg bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 text-slate-950"
+                >
+                  Forceclass
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-800">
+                <button
+                  type="button"
+                  disabled={!manualTargetSteamId.trim() || !canBanPlayers}
+                  onClick={() =>
+                    onExecuteSanction({
+                      type: 'BAN',
+                      targetName: manualTargetSteamId.trim(),
+                      targetSteamId: manualTargetSteamId.trim(),
+                      playerId: /^\d{1,4}$/.test(manualTargetSteamId.trim()) ? manualTargetSteamId.trim() : undefined,
+                      duration: quickBanDuration,
+                      reason: quickSanctionReason
+                    })
+                  }
+                  className="px-3 py-2 text-xs font-semibold rounded-lg bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white"
+                >
+                  Bannir (/ban + /oban · {quickBanDuration})
+                </button>
+                <button
+                  type="button"
+                  disabled={!manualTargetSteamId.trim()}
+                  onClick={() =>
+                    onExecuteSanction({
+                      type: 'KICK',
+                      targetName: manualTargetSteamId.trim(),
+                      targetSteamId: manualTargetSteamId.trim(),
+                      playerId: /^\d{1,4}$/.test(manualTargetSteamId.trim()) ? manualTargetSteamId.trim() : undefined,
+                      reason: quickSanctionReason
+                    })
+                  }
+                  className="px-3 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-cyan-300 border border-slate-700"
+                >
+                  Kick
+                </button>
+                <button
+                  type="button"
+                  disabled={!manualTargetSteamId.trim() || !canBanPlayers}
+                  onClick={() =>
+                    onExecuteSanction({
+                      type: 'UNBAN',
+                      targetName: manualTargetSteamId.trim(),
+                      targetSteamId: manualTargetSteamId.trim(),
+                      reason: 'Débannissement manuel'
+                    })
+                  }
+                  className="px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white"
+                >
+                  Débannir (/unban id)
+                </button>
+              </div>
             </div>
           </div>
         )}
