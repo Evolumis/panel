@@ -1,0 +1,6 @@
+{
+  "name": "Site-19 Command — SCP:SL Pterodactyl & Discord Studio",
+  "description": "Centre de contrôle et architecte complet pour serveur SCP: Secret Laboratory sous Pterodactyl : bot Discord de modération, équipes personnalisées EXILED, éditeur d'affiche Pastebin Rich Text, tags VIP et contrôleur de mode événement.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
