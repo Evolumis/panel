@@ -471,7 +471,7 @@ export const INITIAL_STAFF: StaffMember[] = [
   {
     id: 'st-1',
     username: 'Nathaniel Dagenais [O5-1]',
-    steamId: '76561198042198311@steam',
+    steamId: '',
     discordTag: 'nathaniel_dagenais',
     discordId: '985589556655054858',
     roleId: 'owner',
@@ -479,112 +479,11 @@ export const INITIAL_STAFF: StaffMember[] = [
     badgeText: 'FONDATEUR O5',
     badgeColor: 'crimson',
     permissions: ['KickingAndShortTermBanning', 'BanningUpToDay', 'LongTermBanning', 'ForceclassSelf', 'GiveItems', 'EventsMode', 'Broadcasting', 'ServerConsoleCommands', 'PlayerSensitiveDataAccess'],
-    addedAt: '2026-10-12'
-  },
-  {
-    id: 'st-dev',
-    username: 'Aegis_Dev [SysAdmin]',
-    steamId: '76561198099887766@steam',
-    discordTag: 'aegis_dev',
-    discordId: '512938475610293847',
-    roleId: 'developer',
-    panelRole: 'developer',
-    badgeText: 'DÉVELOPPEUR SITE-19',
-    badgeColor: 'cyan',
-    permissions: ['KickingAndShortTermBanning', 'BanningUpToDay', 'LongTermBanning', 'ForceclassSelf', 'GiveItems', 'EventsMode', 'Broadcasting', 'ServerConsoleCommands'],
-    addedAt: '2026-10-15'
-  },
-  {
-    id: 'st-2',
-    username: 'Valkyrie',
-    steamId: '76561198192837465@steam',
-    discordTag: 'valkyrie_scp',
-    discordId: '591029384756102938',
-    roleId: 'admin',
-    panelRole: 'admin',
-    badgeText: 'ADMIN SITE-19',
-    badgeColor: 'red',
-    permissions: ['KickingAndShortTermBanning', 'BanningUpToDay', 'LongTermBanning', 'ForceclassSelf', 'EventsMode', 'Broadcasting'],
-    addedAt: '2026-10-28'
-  },
-  {
-    id: 'st-3',
-    username: 'Kaelen_MTF',
-    steamId: '76561198334455667@steam',
-    discordTag: 'kaelen.mod',
-    discordId: '718293049586712345',
-    roleId: 'moderator',
-    panelRole: 'moderator',
-    badgeText: 'MODÉRATEUR',
-    badgeColor: 'emerald',
-    permissions: ['KickingAndShortTermBanning', 'BanningUpToDay', 'Broadcasting'],
-    addedAt: '2026-11-05'
-  },
-  {
-    id: 'st-4',
-    username: 'Dr_Bright_FR',
-    steamId: '76561198987654321@steam',
-    discordTag: 'bright_helper',
-    discordId: '829304958671234519',
-    roleId: 'helper',
-    panelRole: 'helper',
-    badgeText: 'HELPEUR',
-    badgeColor: 'mint',
-    permissions: ['KickingAndShortTermBanning'],
-    addedAt: '2026-11-14'
+    addedAt: '2026-11-18'
   }
 ];
 
-export const INITIAL_SANCTIONS: SanctionRecord[] = [
-  {
-    id: 'SAN-904',
-    targetName: 'xX_DarkChaos_Xx',
-    targetSteamId: '76561199102938471@steam',
-    type: 'BAN',
-    reason: 'Teamkill volontaire à la grenade dans l’ascenseur Gate B',
-    duration: '7 jours',
-    moderator: 'Kaelen_MTF',
-    source: 'Bot Discord',
-    timestamp: '18 Nov 2026 · 10:42',
-    active: true
-  },
-  {
-    id: 'SAN-903',
-    targetName: 'D-Boy_Speedrun',
-    targetSteamId: '76561199001122334@steam',
-    type: 'WARN',
-    reason: 'Soundboard abusif en Intercom',
-    duration: 'Avertissement',
-    moderator: 'Dr_Bright_FR',
-    source: 'Bot Discord',
-    timestamp: '18 Nov 2026 · 09:55',
-    active: true
-  },
-  {
-    id: 'SAN-902',
-    targetName: 'ShyGuy_Enjoyer',
-    targetSteamId: '76561198776655443@steam',
-    type: 'BAN',
-    reason: 'Exploit bug porte 079 + insultes staff',
-    duration: '30 jours',
-    moderator: 'Valkyrie',
-    source: 'Panel Pterodactyl',
-    timestamp: '17 Nov 2026 · 22:18',
-    active: true
-  },
-  {
-    id: 'SAN-901',
-    targetName: 'Ghost_Recon99',
-    targetSteamId: '76561198445566778@steam',
-    type: 'KICK',
-    reason: 'AFK prolongé en SCP-079 bloquant la manche',
-    duration: 'Instantané',
-    moderator: 'Kaelen_MTF',
-    source: 'RemoteAdmin',
-    timestamp: '17 Nov 2026 · 19:04',
-    active: false
-  }
-];
+export const INITIAL_SANCTIONS: SanctionRecord[] = [];
 
 export const INITIAL_CUSTOM_TEAMS: CustomTeam[] = [
   {
@@ -719,10 +618,7 @@ export const INITIAL_VIP_TIERS: VipTier[] = [
         extraItems: ['KeycardO5', 'SCP500', 'SCP207', 'Adrenaline']
       }
     ],
-    assignedPlayers: [
-      { name: 'ShadowSlayer', steamId: '76561198112233445@steam', expiresAt: '2026-12-18' },
-      { name: 'Noxious_FR', steamId: '76561198556677889@steam', expiresAt: '2026-12-25' }
-    ]
+    assignedPlayers: []
   },
   {
     id: 'vip-euclid',
@@ -788,9 +684,7 @@ export const INITIAL_VIP_TIERS: VipTier[] = [
         extraItems: ['SCP500', 'Adrenaline']
       }
     ],
-    assignedPlayers: [
-      { name: 'Aurelien_92', steamId: '76561198223344556@steam', expiresAt: '2026-12-10' }
-    ]
+    assignedPlayers: []
   },
   {
     id: 'vip-booster',
@@ -855,9 +749,7 @@ export const INITIAL_VIP_TIERS: VipTier[] = [
         extraItems: ['Adrenaline']
       }
     ],
-    assignedPlayers: [
-      { name: 'Luna_SCP', steamId: '76561198667788990@steam', expiresAt: 'Actif (Boost)' }
-    ]
+    assignedPlayers: []
   }
 ];
 

@@ -69,32 +69,15 @@ export const DiscordModerationCenter: React.FC<DiscordModerationCenterProps> = (
 
   // Slash Command Simulator state
   const [slashType, setSlashType] = useState<'/ban' | '/kick' | '/warn' | '/addmod' | '/givevip' | '/spawnteam'>('/ban');
-  const [cmdTargetName, setCmdTargetName] = useState('SCP_Griefer_99');
-  const [cmdSteamId, setCmdSteamId] = useState('76561198451209381@steam');
+  const [cmdTargetName, setCmdTargetName] = useState('');
+  const [cmdSteamId, setCmdSteamId] = useState('');
   const [cmdDuration, setCmdDuration] = useState('7 jours');
-  const [cmdReason, setCmdReason] = useState('Teamkill grenade ascenseur + insultes micro');
+  const [cmdReason, setCmdReason] = useState('');
   const [cmdModRole, setCmdModRole] = useState<'moderator' | 'admin' | 'helper'>('moderator');
   const [cmdVipId, setCmdVipId] = useState(vipTiers[0]?.id || 'vip-keter');
   const [cmdTeamKey, setCmdTeamKey] = useState(customTeams[0]?.roleKey || 'serpents_hand');
 
-  const [discordFeed, setDiscordFeed] = useState<SimulatedDiscordEmbed[]>([
-    {
-      id: 'emb-1',
-      command: '/ban steamid:76561199102938471@steam duree:7d',
-      title: 'Sanction SCP:SL — Bannissement Exécuté sur Pterodactyl',
-      description: 'Cible : xX_DarkChaos_Xx (76561199102938471@steam) · Durée : 7 jours · Motif : Teamkill volontaire à la grenade dans l’ascenseur Gate B',
-      accentHex: '#DC143C',
-      timestamp: 'Aujourd’hui à 10:42'
-    },
-    {
-      id: 'emb-2',
-      command: '/addmod steamid:76561198334455667@steam grade:moderator',
-      title: 'Synchronisation RemoteAdmin — Nouveau Modérateur',
-      description: 'Kaelen_MTF (76561198334455667@steam) a été ajouté au groupe [MODÉRATEUR] dans config_remoteadmin.txt et rechargé en direct.',
-      accentHex: '#00B7EB',
-      timestamp: 'Aujourd’hui à 09:15'
-    }
-  ]);
+  const [discordFeed, setDiscordFeed] = useState<SimulatedDiscordEmbed[]>([]);
 
   // Add Moderator form state
   const [newModName, setNewModName] = useState('');
@@ -117,6 +100,7 @@ export const DiscordModerationCenter: React.FC<DiscordModerationCenterProps> = (
   const handleRunSlashCommand = (e: React.FormEvent) => {
     e.preventDefault();
     const nowStr = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const nowDate = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
     const formattedSteam = cmdSteamId.includes('@') ? cmdSteamId : `${cmdSteamId}@steam`;
 
     if (slashType === '/ban' || slashType === '/kick' || slashType === '/warn') {
@@ -130,7 +114,7 @@ export const DiscordModerationCenter: React.FC<DiscordModerationCenterProps> = (
         duration: sType === 'BAN' ? cmdDuration : sType === 'KICK' ? 'Instantané' : 'Avertissement',
         moderator: 'O5-1 [Fondateur] (via Bot Discord)',
         source: 'Bot Discord',
-        timestamp: `18 Nov 2026 · ${nowStr}`,
+        timestamp: `${nowDate} · ${nowStr}`,
         active: sType !== 'KICK'
       };
       setSanctions((prev) => [newSanction, ...prev]);

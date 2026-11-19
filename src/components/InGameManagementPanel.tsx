@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { RotateCcw, ShieldAlert } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { RefreshCw, RotateCcw, ShieldAlert } from 'lucide-react';
 import {
   CustomTeam,
   SCPSL_ITEMS,
@@ -46,176 +46,7 @@ interface InGameManagementPanelProps {
   onPowerAction: (signal: 'start' | 'restart' | 'stop') => void;
 }
 
-const INITIAL_INGAME_PLAYERS: ActiveInGamePlayer[] = [
-  {
-    id: 1,
-    name: 'Nathaniel Dagenais',
-    steamId: '76561198042198311@steam',
-    role: 'FIM Alpha-1 "Bras Droit Rouge"',
-    faction: 'CUSTOM',
-    roleColor: '#DC143C',
-    hp: 150,
-    maxHp: 150,
-    ahp: 75,
-    zone: 'Surface Zone',
-    badgeText: 'FONDATEUR O5',
-    badgeHex: '#DC143C',
-    ping: 18,
-    godMode: true,
-    noclip: false,
-    bypassMode: true,
-    voiceMuted: false,
-    intercomMuted: false,
-    inventory: ['KeycardO5', 'GunE11SR', 'MicroHID', 'SCP500', 'ArmorHeavy', 'Radio']
-  },
-  {
-    id: 2,
-    name: 'ShadowSlayer',
-    steamId: '76561198112233445@steam',
-    role: 'SCP-049 (Docteur de la Peste)',
-    faction: 'SCP',
-    roleColor: '#C50000',
-    hp: 1950,
-    maxHp: 2200,
-    ahp: 400,
-    zone: 'Heavy Containment',
-    badgeText: '★ VIP KETER ★',
-    badgeHex: '#DC143C',
-    ping: 24,
-    godMode: false,
-    noclip: false,
-    bypassMode: false,
-    voiceMuted: false,
-    intercomMuted: false,
-    inventory: []
-  },
-  {
-    id: 3,
-    name: 'Kaelen_MTF',
-    steamId: '76561198334455667@steam',
-    role: 'Capitaine MTF Nine-Tailed Fox',
-    faction: 'MTF',
-    roleColor: '#00B7EB',
-    hp: 120,
-    maxHp: 120,
-    ahp: 0,
-    zone: 'Entrance Zone',
-    badgeText: 'MODÉRATEUR',
-    badgeHex: '#00B7EB',
-    ping: 31,
-    godMode: false,
-    noclip: false,
-    bypassMode: false,
-    voiceMuted: false,
-    intercomMuted: false,
-    inventory: ['KeycardMTFCaptain', 'GunE11SR', 'Medkit', 'Adrenaline', 'ArmorHeavy', 'GrenadeHE', 'Radio']
-  },
-  {
-    id: 4,
-    name: 'Luna_SCP',
-    steamId: '76561198667788990@steam',
-    role: 'La Main du Serpent',
-    faction: 'CUSTOM',
-    roleColor: '#FF0090',
-    hp: 125,
-    maxHp: 125,
-    ahp: 30,
-    zone: 'Entrance Zone',
-    badgeText: '♦ NITRO BOOSTER',
-    badgeHex: '#FF1493',
-    ping: 22,
-    godMode: false,
-    noclip: false,
-    bypassMode: false,
-    voiceMuted: false,
-    intercomMuted: false,
-    inventory: ['KeycardChaosInsurgency', 'GunE11SR', 'SCP500', 'ArmorCombat', 'Radio']
-  },
-  {
-    id: 5,
-    name: 'Aurelien_92',
-    steamId: '76561198223344556@steam',
-    role: 'Personnel Classe-D',
-    faction: 'CLASSD',
-    roleColor: '#FF9966',
-    hp: 82,
-    maxHp: 100,
-    ahp: 0,
-    zone: 'Light Containment',
-    badgeText: '⚡ VIP EUCLIDE',
-    badgeHex: '#FAFF86',
-    ping: 29,
-    godMode: false,
-    noclip: false,
-    bypassMode: false,
-    voiceMuted: false,
-    intercomMuted: false,
-    inventory: ['KeycardFacilityManager', 'SCP207', 'Medkit']
-  },
-  {
-    id: 6,
-    name: 'xX_DarkChaos_Xx',
-    steamId: '76561199102938471@steam',
-    role: 'Maraudeur Insurrection du Chaos',
-    faction: 'CHAOS',
-    roleColor: '#228B22',
-    hp: 110,
-    maxHp: 110,
-    ahp: 0,
-    zone: 'Surface Zone',
-    badgeText: 'JOUEUR',
-    badgeHex: '#A0A0A0',
-    ping: 44,
-    godMode: false,
-    noclip: false,
-    bypassMode: false,
-    voiceMuted: false,
-    intercomMuted: false,
-    inventory: ['KeycardChaosInsurgency', 'GunLogicer', 'GunRevolver', 'Medkit', 'Painkillers', 'ArmorCombat']
-  },
-  {
-    id: 7,
-    name: 'Dr_Vance_FR',
-    steamId: '76561198998877665@steam',
-    role: 'Scientifique Superviseur',
-    faction: 'SCIENTIST',
-    roleColor: '#FAFF86',
-    hp: 100,
-    maxHp: 100,
-    ahp: 0,
-    zone: 'Heavy Containment',
-    badgeText: 'JOUEUR',
-    badgeHex: '#A0A0A0',
-    ping: 27,
-    godMode: false,
-    noclip: false,
-    bypassMode: false,
-    voiceMuted: false,
-    intercomMuted: false,
-    inventory: ['KeycardO5', 'Medkit', 'Painkillers', 'Radio']
-  },
-  {
-    id: 8,
-    name: 'Noxious_FR',
-    steamId: '76561198556677889@steam',
-    role: 'SCP-173 (La Sculpture)',
-    faction: 'SCP',
-    roleColor: '#C50000',
-    hp: 3600,
-    maxHp: 4000,
-    ahp: 750,
-    zone: 'Heavy Containment',
-    badgeText: '★ VIP KETER ★',
-    badgeHex: '#DC143C',
-    ping: 21,
-    godMode: false,
-    noclip: false,
-    bypassMode: false,
-    voiceMuted: false,
-    intercomMuted: false,
-    inventory: []
-  }
-];
+const INITIAL_INGAME_PLAYERS: ActiveInGamePlayer[] = [];
 
 const VANILLA_ROLES = [
   { id: 'Scp173', label: 'SCP-173 (La Sculpture)', faction: 'SCP' as const, color: '#C50000', hp: 4000 },
@@ -246,6 +77,7 @@ const TELEPORT_LOCATIONS = [
 ];
 
 export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
+  serverState,
   serverPort,
   customTeams,
   sanctions,
@@ -259,8 +91,68 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
   const canBanPlayers = activeRolePermissions ? activeRolePermissions.canBanPlayers : true;
 
   const [players, setPlayers] = useState<ActiveInGamePlayer[]>(INITIAL_INGAME_PLAYERS);
-  const [selectedPlayerId, setSelectedPlayerId] = useState<number>(1);
+  const [selectedPlayerId, setSelectedPlayerId] = useState<number>(0);
+  const [manualTargetSteamId, setManualTargetSteamId] = useState('');
   const [factionFilter, setFactionFilter] = useState<'ALL' | ActiveInGamePlayer['faction']>('ALL');
+
+  const syncRealPlayersFromTelemetry = async () => {
+    try {
+      const resp = await fetch('/api/telemetry/events');
+      if (!resp.ok) return;
+      const data = await resp.json();
+      const events = Array.isArray(data.events) ? data.events : [];
+      const activeMap = new Map<string, ActiveInGamePlayer>();
+      let seq = 1;
+      [...events].reverse().forEach((ev: {
+        category?: string;
+        killerName?: string;
+        killerSteamId?: string;
+        killerRole?: string;
+        victimName?: string;
+        victimSteamId?: string;
+        victimRole?: string;
+        zone?: string;
+      }) => {
+        if (ev.category === 'DISCONNECT' && ev.killerSteamId) {
+          activeMap.delete(ev.killerSteamId);
+        } else if (ev.killerSteamId) {
+          const prev = activeMap.get(ev.killerSteamId);
+          activeMap.set(ev.killerSteamId, {
+            id: prev?.id || seq++,
+            name: ev.killerName || prev?.name || ev.killerSteamId,
+            steamId: ev.killerSteamId,
+            role: ev.killerRole || prev?.role || 'Connecté',
+            faction: 'STAFF',
+            roleColor: '#38BDF8',
+            hp: prev?.hp || 100,
+            maxHp: prev?.maxHp || 100,
+            ahp: prev?.ahp || 0,
+            zone: 'Surface Zone',
+            badgeText: 'JOUEUR RÉEL',
+            badgeHex: '#38BDF8',
+            ping: prev?.ping || 20,
+            godMode: false,
+            noclip: false,
+            bypassMode: false,
+            voiceMuted: false,
+            intercomMuted: false,
+            inventory: prev?.inventory || []
+          });
+        }
+      });
+      const list = Array.from(activeMap.values());
+      setPlayers(list);
+      if (list.length > 0 && !list.some((p) => p.id === selectedPlayerId)) {
+        setSelectedPlayerId(list[0].id);
+      }
+    } catch {
+      // ignore fetch error
+    }
+  };
+
+  useEffect(() => {
+    syncRealPlayersFromTelemetry();
+  }, []);
 
   // Facility live state
   const [warheadState, setWarheadState] = useState<'STANDBY' | 'COUNTDOWN' | 'LOCKED' | 'DETONATED'>('STANDBY');
@@ -276,23 +168,23 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
   >('ALL');
   const [chosenItemId, setChosenItemId] = useState('KeycardO5');
   const [chosenTeleportId, setChosenTeleportId] = useState('Surface_GateA');
-  const [customHpInput, setCustomHpInput] = useState(150);
+  const [customHpInput, setCustomHpInput] = useState(100);
 
   // Quick Sanction / Broadcast state
   const [quickSanctionReason, setQuickSanctionReason] = useState('Non-respect des règles du serveur / Teamkill');
   const [quickBanDuration, setQuickBanDuration] = useState('24 heures');
   const [privateHintText, setPrivateHintText] = useState('Attention : Vous êtes observé par un Modérateur.');
   const [globalBcText, setGlobalBcText] = useState(
-    '<color=#DC143C><b>[ANNONCE STAFF]</b></color> Respectez les Classes-D menottées — Bon jeu sur play.lumishost.com:1031 !'
+    '<color=#DC143C><b>[ANNONCE STAFF]</b></color> Bon jeu sur play.lumishost.com:1031 !'
   );
   const [lastBroadcastBanner, setLastBroadcastBanner] = useState(
-    '[ANNONCE STAFF] Respectez les Classes-D menottées — Bon jeu sur play.lumishost.com:1031 !'
+    'Aucun broadcast actif sur play.lumishost.com:1031'
   );
   const [lastCassieSubtitle, setLastCassieSubtitle] = useState(
-    'Tous les systèmes du Site-19 sont opérationnels. Aucune ogive activée.'
+    'Systèmes du Site-19 en veille — En attente d’événements.'
   );
 
-  const selectedPlayer = players.find((p) => p.id === selectedPlayerId) || players[0];
+  const selectedPlayer = players.find((p) => p.id === selectedPlayerId) || players[0] || null;
 
   const updatePlayer = (id: number, updater: (p: ActiveInGamePlayer) => ActiveInGamePlayer) => {
     setPlayers((prev) => prev.map((p) => (p.id === id ? updater(p) : p)));
@@ -419,6 +311,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
     if (!selectedPlayer) return;
     if (type === 'BAN' && !canBanPlayers) return;
     const nowTime = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const nowDate = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
     const record: SanctionRecord = {
       id: `SAN-${910 + sanctions.length}`,
       targetName: selectedPlayer.name,
@@ -430,7 +323,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
         ? `${activeRolePermissions.label} (RemoteAdmin Web)`
         : 'Nathaniel Dagenais (RemoteAdmin Web)',
       source: 'RemoteAdmin',
-      timestamp: `18 Nov 2026 · ${nowTime}`,
+      timestamp: `${nowDate} · ${nowTime}`,
       active: type !== 'KICK'
     };
     setSanctions((prev) => [record, ...prev]);
@@ -473,12 +366,12 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
       {/* Live Facility & Round Telemetry Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-900">
-          <div className="text-xs text-slate-400">Durée de la Manche</div>
+          <div className="text-xs text-slate-400">État du Serveur</div>
           <div className="text-lg font-bold font-mono tabular-nums text-white mt-0.5">
-            14m 28s
+            {serverState === 'running' ? 'EN LIGNE' : serverState.toUpperCase()}
           </div>
           <div className="text-xs font-mono text-emerald-400">
-            {roundLocked ? 'RoundLock Actif' : '60.0 TPS · En cours'}
+            {roundLocked ? 'RoundLock Actif' : '60 TPS · SCP:SL 14.2.9'}
           </div>
         </div>
 
@@ -487,7 +380,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
           <div className="text-lg font-bold font-mono tabular-nums text-rose-400 mt-0.5">
             {players.filter((p) => p.faction === 'SCP').length} SCPs
           </div>
-          <div className="text-xs text-slate-400 truncate">049, 173 actifs</div>
+          <div className="text-xs text-slate-400 truncate">Télémétrie en direct</div>
         </div>
 
         <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-900">
@@ -495,7 +388,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
           <div className="text-lg font-bold font-mono tabular-nums text-cyan-400 mt-0.5">
             {players.filter((p) => p.faction === 'MTF' || p.faction === 'SCIENTIST').length} Agents
           </div>
-          <div className="text-xs text-slate-400">Prochain spawn : 1m 45s</div>
+          <div className="text-xs text-slate-400">Vagues MTF automatiques</div>
         </div>
 
         <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-900">
@@ -503,7 +396,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
           <div className="text-lg font-bold font-mono tabular-nums text-purple-400 mt-0.5">
             {players.filter((p) => p.faction === 'CHAOS' || p.faction === 'CUSTOM').length} Unités
           </div>
-          <div className="text-xs text-slate-400">Alpha-1 &amp; Serpent</div>
+          <div className="text-xs text-slate-400">{customTeams.length} équipes configurées</div>
         </div>
 
         <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-900">
@@ -519,7 +412,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
           >
             {warheadState}
           </div>
-          <div className="text-xs text-slate-400">Générateurs : 2 / 3</div>
+          <div className="text-xs text-slate-400">Contrôle à distance</div>
         </div>
 
         <div className="p-3.5 rounded-xl border border-slate-800 bg-slate-900">
@@ -549,42 +442,40 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
       )}
 
       {/* Live In-Game Interface: Spectator HUD + Interactive Site-19 Radar Map */}
-      {selectedPlayer && (
-        <Site19GameInterface
-          players={players}
-          selectedPlayer={selectedPlayer}
-          onSelectPlayer={(pl) => {
-            setSelectedPlayerId(pl.id);
-            setCustomHpInput(pl.hp);
-          }}
-          warheadState={warheadState}
-          doorsLocked={doorsLocked}
-          blackoutActive={blackoutActive}
-          roundLocked={roundLocked}
-          serverPort={serverPort}
-          lastBroadcastBanner={lastBroadcastBanner}
-          lastCassieSubtitle={lastCassieSubtitle}
-          canUseHeavyActions={canUseHeavyActions}
-          onQuickZoneTeleport={handleQuickZoneTeleport}
-          onQuickFacilityCommand={(cmd, origin) => {
-            onExecutePteroCommand(cmd, origin);
-            if (origin === 'SITE-19 TESLA GATES') {
-              setLastCassieSubtitle(
-                cmd.includes('disable')
-                  ? 'Portes Tesla désactivées par le commandement.'
-                  : 'Système de défense Tesla réactivé dans Heavy Containment.'
-              );
-            } else if (origin === 'SITE-19 GENERATORS') {
-              setLastCassieSubtitle('Mise à jour de l’alimentation des générateurs HCZ.');
-            }
-          }}
-          onQuickHealSelected={() => {
-            if (!canUseHeavyActions) return;
-            updatePlayer(selectedPlayer.id, (p) => ({ ...p, hp: p.maxHp }));
-            onExecutePteroCommand(`heal ${selectedPlayer.steamId}`, 'HUD IN-GAME');
-          }}
-        />
-      )}
+      <Site19GameInterface
+        players={players}
+        selectedPlayer={selectedPlayer}
+        onSelectPlayer={(pl) => {
+          setSelectedPlayerId(pl.id);
+          setCustomHpInput(pl.hp);
+        }}
+        warheadState={warheadState}
+        doorsLocked={doorsLocked}
+        blackoutActive={blackoutActive}
+        roundLocked={roundLocked}
+        serverPort={serverPort}
+        lastBroadcastBanner={lastBroadcastBanner}
+        lastCassieSubtitle={lastCassieSubtitle}
+        canUseHeavyActions={canUseHeavyActions}
+        onQuickZoneTeleport={handleQuickZoneTeleport}
+        onQuickFacilityCommand={(cmd, origin) => {
+          onExecutePteroCommand(cmd, origin);
+          if (origin === 'SITE-19 TESLA GATES') {
+            setLastCassieSubtitle(
+              cmd.includes('disable')
+                ? 'Portes Tesla désactivées par le commandement.'
+                : 'Système de défense Tesla réactivé dans Heavy Containment.'
+            );
+          } else if (origin === 'SITE-19 GENERATORS') {
+            setLastCassieSubtitle('Mise à jour de l’alimentation des générateurs HCZ.');
+          }
+        }}
+        onQuickHealSelected={() => {
+          if (!canUseHeavyActions || !selectedPlayer) return;
+          updatePlayer(selectedPlayer.id, (p) => ({ ...p, hp: p.maxHp }));
+          onExecutePteroCommand(`heal ${selectedPlayer.steamId}`, 'HUD IN-GAME');
+        }}
+      />
 
       {/* Main 2-Column Split: Left = Live Players List (RemoteAdmin Table), Right = Selected Player In-Game Inspector */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -600,82 +491,106 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
               </h2>
             </div>
 
-            <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-950 rounded-lg border border-slate-800">
-              {(['ALL', 'SCP', 'MTF', 'CUSTOM', 'CHAOS', 'CLASSD'] as const).map((fac) => (
-                <button
-                  key={fac}
-                  onClick={() => setFactionFilter(fac)}
-                  className={`px-2.5 py-1 text-xs font-medium rounded transition-colors whitespace-nowrap shrink-0 ${
-                    factionFilter === fac
-                      ? 'bg-slate-800 text-white'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {fac === 'ALL' ? 'Tous' : fac}
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  syncRealPlayersFromTelemetry();
+                  onExecutePteroCommand('list', 'REMOTEADMIN LIST');
+                }}
+                className="px-2.5 py-1 text-xs font-semibold rounded bg-slate-950 hover:bg-slate-800 text-cyan-300 border border-slate-700 transition-colors flex items-center gap-1"
+              >
+                <RefreshCw className="w-3 h-3" />
+                Rafraîchir (`list`)
+              </button>
+              <div className="flex flex-wrap items-center gap-1 p-1 bg-slate-950 rounded-lg border border-slate-800">
+                {(['ALL', 'SCP', 'MTF', 'CUSTOM', 'CHAOS', 'CLASSD'] as const).map((fac) => (
+                  <button
+                    key={fac}
+                    onClick={() => setFactionFilter(fac)}
+                    className={`px-2.5 py-1 text-xs font-medium rounded transition-colors whitespace-nowrap shrink-0 ${
+                      factionFilter === fac
+                        ? 'bg-slate-800 text-white'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {fac === 'ALL' ? 'Tous' : fac}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
           <div className="space-y-2 max-h-[540px] overflow-y-auto pr-1">
-            {filteredPlayers.map((p) => {
-              const isSelected = p.id === selectedPlayer?.id;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => {
-                    setSelectedPlayerId(p.id);
-                    setCustomHpInput(p.hp);
-                  }}
-                  className={`w-full p-3.5 rounded-xl border text-left transition-colors flex items-center justify-between gap-3 ${
-                    isSelected
-                      ? 'bg-amber-500/15 border-amber-500/60'
-                      : 'bg-slate-950 border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-mono text-slate-400">#{p.id}</span>
-                      <span className="text-sm font-bold text-white truncate">{p.name}</span>
-                      <span
-                        className="text-xs font-mono font-bold"
-                        style={{ color: p.badgeHex }}
-                      >
-                        [{p.badgeText}]
-                      </span>
+            {filteredPlayers.length === 0 ? (
+              <div className="p-6 rounded-xl border border-slate-800 bg-slate-950 text-center space-y-2">
+                <div className="text-sm font-semibold text-slate-300">
+                  Aucun joueur réel connecté actuellement
+                </div>
+                <p className="text-xs text-slate-500">
+                  Dès qu’un vrai joueur rejoint <span className="font-mono text-cyan-400">play.lumishost.com:{serverPort}</span> ou qu’un événement télémétrie arrive, il apparaîtra ici automatiquement.
+                </p>
+              </div>
+            ) : (
+              filteredPlayers.map((p) => {
+                const isSelected = p.id === selectedPlayer?.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      setSelectedPlayerId(p.id);
+                      setCustomHpInput(p.hp);
+                    }}
+                    className={`w-full p-3.5 rounded-xl border text-left transition-colors flex items-center justify-between gap-3 ${
+                      isSelected
+                        ? 'bg-amber-500/15 border-amber-500/60'
+                        : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-slate-400">#{p.id}</span>
+                        <span className="text-sm font-bold text-white truncate">{p.name}</span>
+                        <span
+                          className="text-xs font-mono font-bold"
+                          style={{ color: p.badgeHex }}
+                        >
+                          [{p.badgeText}]
+                        </span>
+                      </div>
+                      <div className="text-xs font-semibold truncate" style={{ color: p.roleColor }}>
+                        {p.role}
+                      </div>
+                      <div className="text-xs font-mono text-slate-400 flex items-center gap-2">
+                        <span>{p.zone}</span>
+                        <span>·</span>
+                        <span>{p.ping} ms</span>
+                        {p.godMode && <span className="text-amber-400 font-bold">· GOD</span>}
+                        {p.noclip && <span className="text-cyan-400 font-bold">· NOCLIP</span>}
+                        {p.voiceMuted && <span className="text-rose-400 font-bold">· MUTE</span>}
+                      </div>
                     </div>
-                    <div className="text-xs font-semibold truncate" style={{ color: p.roleColor }}>
-                      {p.role}
-                    </div>
-                    <div className="text-xs font-mono text-slate-400 flex items-center gap-2">
-                      <span>{p.zone}</span>
-                      <span>·</span>
-                      <span>{p.ping} ms</span>
-                      {p.godMode && <span className="text-amber-400 font-bold">· GOD</span>}
-                      {p.noclip && <span className="text-cyan-400 font-bold">· NOCLIP</span>}
-                      {p.voiceMuted && <span className="text-rose-400 font-bold">· MUTE</span>}
-                    </div>
-                  </div>
 
-                  <div className="text-right shrink-0 space-y-1">
-                    <div className="text-xs font-mono tabular-nums font-bold text-emerald-400">
-                      {p.hp} / {p.maxHp} HP
+                    <div className="text-right shrink-0 space-y-1">
+                      <div className="text-xs font-mono tabular-nums font-bold text-emerald-400">
+                        {p.hp} / {p.maxHp} HP
+                      </div>
+                      <div className="w-24 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500"
+                          style={{
+                            width: `${Math.min(100, Math.round((p.hp / Math.max(1, p.maxHp)) * 100))}%`
+                          }}
+                        />
+                      </div>
+                      <div className="text-xs font-mono text-slate-400">
+                        {p.inventory.length}/8 items
+                      </div>
                     </div>
-                    <div className="w-24 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-emerald-500"
-                        style={{
-                          width: `${Math.min(100, Math.round((p.hp / Math.max(1, p.maxHp)) * 100))}%`
-                        }}
-                      />
-                    </div>
-                    <div className="text-xs font-mono text-slate-400">
-                      {p.inventory.length}/8 items
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })
+            )}
           </div>
 
           {/* Global Wave Spawner Strip */}
@@ -738,7 +653,7 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
         </div>
 
         {/* Right 6 Cols: RemoteAdmin Player Inspector & In-Game Action Deck */}
-        {selectedPlayer && (
+        {selectedPlayer ? (
           <div className="lg:col-span-6 p-5 rounded-xl border border-slate-800 bg-slate-900 space-y-5">
             {/* Selected Player Header */}
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-800 pb-4">
@@ -1146,6 +1061,51 @@ export const InGameManagementPanel: React.FC<InGameManagementPanelProps> = ({
                   Bannir ({quickBanDuration})
                 </button>
               </div>
+            </div>
+          </div>
+        ) : (
+          <div className="lg:col-span-6 p-5 rounded-xl border border-slate-800 bg-slate-900 space-y-4">
+            <div className="text-xs font-mono text-amber-400">
+              INSPECTEUR REMOTEADMIN · CIBLAGE DIRECT PAR STEAMID64 OU ID
+            </div>
+            <h3 className="text-base font-bold text-white">
+              Aucun joueur sélectionné — Cibler un vrai joueur manuellement
+            </h3>
+            <p className="text-xs text-slate-400">
+              Entrez un vrai SteamID64 (`76561198...@steam`) ou son ID en jeu (`1`, `2`...) pour exécuter des commandes RemoteAdmin en direct.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <input
+                type="text"
+                value={manualTargetSteamId}
+                onChange={(e) => setManualTargetSteamId(e.target.value)}
+                placeholder="SteamID64 réel (ex: 76561198...@steam) ou ID joueur"
+                className="flex-1 px-3 py-2 text-xs font-mono rounded-lg bg-slate-950 border border-slate-800 text-amber-300"
+              />
+              <button
+                type="button"
+                disabled={!manualTargetSteamId.trim() || !canUseHeavyActions}
+                onClick={() => onExecutePteroCommand(`god ${manualTargetSteamId.trim()} on`, 'REMOTEADMIN IN-GAME')}
+                className="px-3 py-2 text-xs font-semibold rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-slate-950"
+              >
+                GodMode
+              </button>
+              <button
+                type="button"
+                disabled={!manualTargetSteamId.trim() || !canUseHeavyActions}
+                onClick={() => onExecutePteroCommand(`give ${manualTargetSteamId.trim()} ${chosenItemId}`, 'REMOTEADMIN IN-GAME')}
+                className="px-3 py-2 text-xs font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 text-slate-950"
+              >
+                Give {chosenItemId}
+              </button>
+              <button
+                type="button"
+                disabled={!manualTargetSteamId.trim() || !canUseHeavyActions}
+                onClick={() => onExecutePteroCommand(`forceclass ${manualTargetSteamId.trim()} ${chosenRoleId}`, 'REMOTEADMIN IN-GAME')}
+                className="px-3 py-2 text-xs font-semibold rounded-lg bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 text-slate-950"
+              >
+                Forceclass
+              </button>
             </div>
           </div>
         )}

@@ -30,11 +30,15 @@ export function generateRemoteAdminConfig(
 ): string {
   const memberLines: string[] = [];
   staffList.forEach((s) => {
-    memberLines.push(` - ${s.steamId}: ${s.roleId} # ${s.username} (Discord: ${s.discordTag})`);
+    if (s.steamId && s.steamId.trim()) {
+      memberLines.push(` - ${s.steamId.trim()}: ${s.roleId} # ${s.username} (Discord: ${s.discordTag})`);
+    }
   });
   vipTiers.forEach((tier) => {
     tier.assignedPlayers.forEach((player) => {
-      memberLines.push(` - ${player.steamId}: ${tier.id} # VIP: ${player.name} (${tier.name})`);
+      if (player.steamId && player.steamId.trim()) {
+        memberLines.push(` - ${player.steamId.trim()}: ${tier.id} # VIP: ${player.name} (${tier.name})`);
+      }
     });
   });
 
@@ -119,7 +123,7 @@ export function generateRemoteAdminConfig(
 # ====================================================================
 
 Members:
-${memberLines.join('\n')}
+${memberLines.length > 0 ? memberLines.join('\n') : ' # Ajoutez vos vrais SteamID64 via le Panel Web ou /addmod'}
 
 enable_staff_access: true
 enable_manager_access: true

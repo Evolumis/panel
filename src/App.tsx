@@ -150,6 +150,30 @@ export default function App() {
               }
             })
             .catch(() => {});
+          fetch('/api/ptero/logs/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              panelUrl: d.pteroUrl || 'https://panel.lumishost.com',
+              serverId: d.pteroServerId || '',
+              port: '1031'
+            })
+          })
+            .then((lr) => lr.json())
+            .then((ld) => {
+              if (Array.isArray(ld.lines) && ld.lines.length > 0) {
+                setConsoleLogs(
+                  ld.lines.slice(-40).map((line: string, idx: number) => ({
+                    id: `sync-${idx}`,
+                    time: line.slice(12, 20) || 'LIVE',
+                    origin: 'LOCALADMIN',
+                    text: line,
+                    level: line.includes('WARN') || line.includes('ERR') ? 'warn' : line.includes('Exiled') ? 'exiled' : 'info'
+                  }))
+                );
+              }
+            })
+            .catch(() => {});
         }
       })
       .catch(() => {});
@@ -198,37 +222,8 @@ export default function App() {
   const [eventActive, setEventActive] = useState(false);
   const [activeEventTitle, setActiveEventTitle] = useState('Aucun événement actif');
 
-  // Live Console Logs matching the user's real 192.99.42.203:1031 server
-  const [consoleLogs, setConsoleLogs] = useState<ConsoleLogEntry[]>([
-    {
-      id: 'log-1',
-      time: '20:21:26',
-      origin: 'LABAPI 14.2.9',
-      text: '[INFO] [LabApi] [LOADER] Loading all dependencies & plugins on port 1031.',
-      level: 'exiled'
-    },
-    {
-      id: 'log-2',
-      time: '20:21:28',
-      origin: 'LOCALADMIN',
-      text: 'Config files loaded from /home/container/.config/SCP Secret Laboratory/config/1031/',
-      level: 'info'
-    },
-    {
-      id: 'log-3',
-      time: '20:21:28',
-      origin: 'NETWORK',
-      text: 'Done, your server IP address is 192.99.42.203:1031 (play.lumishost.com:1031).',
-      level: 'info'
-    },
-    {
-      id: 'log-4',
-      time: '20:21:49',
-      origin: 'FACILITY',
-      text: 'Scene Manager: Loaded scene Facility. Waiting for players... Server marked as running.',
-      level: 'command'
-    }
-  ]);
+  // Real Console Logs synced from Pterodactyl / executed commands
+  const [consoleLogs, setConsoleLogs] = useState<ConsoleLogEntry[]>([]);
 
   const appendLog = (text: string, origin = 'CONSOLE', level: ConsoleLogEntry['level'] = 'command') => {
     const time = new Date().toLocaleTimeString('fr-FR', {

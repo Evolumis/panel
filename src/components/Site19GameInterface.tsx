@@ -18,7 +18,7 @@ import { SCPSL_ITEMS } from '../data/scpslDefaults';
 
 interface Site19GameInterfaceProps {
   players: ActiveInGamePlayer[];
-  selectedPlayer: ActiveInGamePlayer;
+  selectedPlayer: ActiveInGamePlayer | null;
   onSelectPlayer: (player: ActiveInGamePlayer) => void;
   warheadState: 'STANDBY' | 'COUNTDOWN' | 'LOCKED' | 'DETONATED';
   doorsLocked: boolean;
@@ -100,8 +100,8 @@ export const Site19GameInterface: React.FC<Site19GameInterfaceProps> = ({
 }) => {
   const [viewMode, setViewMode] = useState<'split' | 'hud' | 'map'>('split');
   const [generatorsActive, setGeneratorsActive] = useState<[boolean, boolean, boolean]>([
-    true,
-    true,
+    false,
+    false,
     false
   ]);
   const [teslasDisabled, setTeslasDisabled] = useState(false);
@@ -142,7 +142,8 @@ export const Site19GameInterface: React.FC<Site19GameInterfaceProps> = ({
             INTERFACE DE JEU EN DIRECT · RADAR SITE-19 &amp; MONITEUR HUD SPECTATEUR (play.lumishost.com:{serverPort})
           </div>
           <h2 className="text-lg font-bold text-white">
-            Interface Tactique En Jeu &amp; Aperçu Écran Joueur ({selectedPlayer.name})
+            Interface Tactique En Jeu &amp; Aperçu Écran Joueur (
+            {selectedPlayer ? selectedPlayer.name : 'Aucun joueur connecté'})
           </h2>
         </div>
 
@@ -205,15 +206,22 @@ export const Site19GameInterface: React.FC<Site19GameInterfaceProps> = ({
                 <div className="px-2.5 py-1 rounded bg-slate-950/90 border border-slate-800 text-slate-200 flex items-center gap-2">
                   <Eye className="w-3.5 h-3.5 text-cyan-400" />
                   <span>
-                    SPECTATE : <strong className="text-white">{selectedPlayer.name}</strong>
+                    SPECTATE :{' '}
+                    <strong className="text-white">
+                      {selectedPlayer ? selectedPlayer.name : 'En attente de joueurs réels'}
+                    </strong>
                   </span>
-                  <span className="text-slate-500">·</span>
-                  <span className="text-emerald-400">{selectedPlayer.ping} ms</span>
+                  {selectedPlayer && (
+                    <>
+                      <span className="text-slate-500">·</span>
+                      <span className="text-emerald-400">{selectedPlayer.ping} ms</span>
+                    </>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2">
                   <span className="px-2.5 py-1 rounded bg-slate-950/90 border border-slate-800 text-slate-300 tabular-nums">
-                    MANCHE 14:28 {roundLocked ? '· LOCKED' : ''}
+                    {players.length} JOUEUR(S) EN LIGNE {roundLocked ? '· LOCKED' : ''}
                   </span>
                   <span
                     className={`px-2.5 py-1 rounded border font-bold ${
@@ -246,42 +254,56 @@ export const Site19GameInterface: React.FC<Site19GameInterfaceProps> = ({
                 <Crosshair className="w-4 h-4 text-slate-400" />
               </div>
 
-              <div className="space-y-1">
-                <div
-                  className="text-xs font-mono font-bold px-2.5 py-0.5 rounded bg-slate-950/80 border border-slate-800 inline-block"
-                  style={{ color: selectedPlayer.badgeHex }}
-                >
-                  [{selectedPlayer.badgeText}]
+              {selectedPlayer ? (
+                <div className="space-y-1">
+                  <div
+                    className="text-xs font-mono font-bold px-2.5 py-0.5 rounded bg-slate-950/80 border border-slate-800 inline-block"
+                    style={{ color: selectedPlayer.badgeHex }}
+                  >
+                    [{selectedPlayer.badgeText}]
+                  </div>
+                  <div
+                    className="text-base font-bold"
+                    style={{ color: selectedPlayer.roleColor }}
+                  >
+                    {selectedPlayer.role}
+                  </div>
+                  <div className="text-xs font-mono text-slate-400">
+                    Position actuelle : <strong className="text-white">{selectedPlayer.zone}</strong>
+                  </div>
                 </div>
-                <div
-                  className="text-base font-bold"
-                  style={{ color: selectedPlayer.roleColor }}
-                >
-                  {selectedPlayer.role}
+              ) : (
+                <div className="space-y-1">
+                  <div className="text-xs font-mono font-bold px-2.5 py-0.5 rounded bg-slate-950/80 border border-slate-800 inline-block text-slate-400">
+                    AUCUN JOUEUR EN LIGNE
+                  </div>
+                  <div className="text-sm font-semibold text-slate-300">
+                    Serveur prêt sur play.lumishost.com:{serverPort}
+                  </div>
+                  <div className="text-xs font-mono text-slate-500">
+                    Les vrais joueurs connectés apparaîtront ici automatiquement.
+                  </div>
                 </div>
-                <div className="text-xs font-mono text-slate-400">
-                  Position actuelle : <strong className="text-white">{selectedPlayer.zone}</strong>
-                </div>
-              </div>
+              )}
 
               {/* Active Player Flags on HUD */}
               <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] font-mono">
-                {selectedPlayer.godMode && (
+                {selectedPlayer?.godMode && (
                   <span className="px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/50 text-amber-300">
                     GODMODE ACTIF
                   </span>
                 )}
-                {selectedPlayer.noclip && (
+                {selectedPlayer?.noclip && (
                   <span className="px-2 py-0.5 rounded bg-cyan-500/20 border border-cyan-500/50 text-cyan-300">
                     NOCLIP VOL
                   </span>
                 )}
-                {selectedPlayer.bypassMode && (
+                {selectedPlayer?.bypassMode && (
                   <span className="px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/50 text-emerald-300">
                     BYPASS PORTES
                   </span>
                 )}
-                {selectedPlayer.voiceMuted && (
+                {selectedPlayer?.voiceMuted && (
                   <span className="px-2 py-0.5 rounded bg-rose-500/20 border border-rose-500/50 text-rose-300 flex items-center gap-1">
                     <MicOff className="w-3 h-3" /> MUTE VOCAL
                   </span>
@@ -312,30 +334,36 @@ export const Site19GameInterface: React.FC<Site19GameInterfaceProps> = ({
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-mono text-emerald-400 font-bold flex items-center gap-1">
                     <HeartPulse className="w-3.5 h-3.5" />
-                    HP {selectedPlayer.hp} / {selectedPlayer.maxHp}
+                    HP {selectedPlayer ? `${selectedPlayer.hp} / ${selectedPlayer.maxHp}` : '0 / 0'}
                   </span>
-                  <button
-                    type="button"
-                    onClick={onQuickHealSelected}
-                    className="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-mono text-[11px] border border-emerald-500/40"
-                  >
-                    + Heal 100%
-                  </button>
+                  {selectedPlayer && (
+                    <button
+                      type="button"
+                      onClick={onQuickHealSelected}
+                      className="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 font-mono text-[11px] border border-emerald-500/40"
+                    >
+                      + Heal 100%
+                    </button>
+                  )}
                 </div>
                 <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-emerald-500 transition-all"
                     style={{
-                      width: `${Math.min(
-                        100,
-                        Math.round((selectedPlayer.hp / Math.max(1, selectedPlayer.maxHp)) * 100)
-                      )}%`
+                      width: `${
+                        selectedPlayer
+                          ? Math.min(
+                              100,
+                              Math.round((selectedPlayer.hp / Math.max(1, selectedPlayer.maxHp)) * 100)
+                            )
+                          : 0
+                      }%`
                     }}
                   />
                 </div>
                 <div className="flex items-center justify-between text-[11px] font-mono text-cyan-300">
-                  <span>Bouclier AHP : {selectedPlayer.ahp}</span>
-                  <span>Stamina : 100%</span>
+                  <span>Bouclier AHP : {selectedPlayer ? selectedPlayer.ahp : 0}</span>
+                  <span>{selectedPlayer ? `${selectedPlayer.ping} ms` : 'En attente'}</span>
                 </div>
               </div>
 
@@ -344,13 +372,13 @@ export const Site19GameInterface: React.FC<Site19GameInterfaceProps> = ({
                 <div className="flex items-center justify-between text-[11px] font-mono text-slate-400">
                   <span className="flex items-center gap-1">
                     <Package className="w-3 h-3 text-amber-400" />
-                    Inventaire En Jeu ({selectedPlayer.inventory.length}/8)
+                    Inventaire En Jeu ({selectedPlayer ? selectedPlayer.inventory.length : 0}/8)
                   </span>
                   <span className="text-slate-500">Touches [1-8]</span>
                 </div>
                 <div className="grid grid-cols-4 gap-1.5">
                   {Array.from({ length: 8 }).map((_, idx) => {
-                    const itemId = selectedPlayer.inventory[idx];
+                    const itemId = selectedPlayer?.inventory[idx];
                     const itemMeta = SCPSL_ITEMS.find((it) => it.id === itemId);
                     return (
                       <div
@@ -406,7 +434,7 @@ export const Site19GameInterface: React.FC<Site19GameInterfaceProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {FACILITY_SECTORS.map((sector) => {
                 const sectorPlayers = players.filter((p) => p.zone === sector.id);
-                const isSelectedZone = selectedPlayer.zone === sector.id;
+                const isSelectedZone = selectedPlayer?.zone === sector.id;
 
                 return (
                   <div
@@ -425,12 +453,12 @@ export const Site19GameInterface: React.FC<Site19GameInterfaceProps> = ({
 
                       <button
                         type="button"
-                        disabled={!canUseHeavyActions}
+                        disabled={!canUseHeavyActions || !selectedPlayer}
                         onClick={() => onQuickZoneTeleport(sector.id, sector.cmdId)}
                         className={`px-2 py-1 text-[11px] font-mono font-semibold rounded bg-slate-950 hover:bg-cyan-500 hover:text-slate-950 text-cyan-300 border border-slate-700 transition-colors ${
-                          !canUseHeavyActions ? 'opacity-50 cursor-not-allowed' : ''
+                          !canUseHeavyActions || !selectedPlayer ? 'opacity-50 cursor-not-allowed' : ''
                         }`}
-                        title={`Téléporter ${selectedPlayer.name} ici`}
+                        title={selectedPlayer ? `Téléporter ${selectedPlayer.name} ici` : 'Sélectionnez un joueur'}
                       >
                         <MapPin className="w-3 h-3 inline mr-0.5" />
                         TP Ici
@@ -457,7 +485,7 @@ export const Site19GameInterface: React.FC<Site19GameInterfaceProps> = ({
                         </div>
                       ) : (
                         sectorPlayers.map((pl) => {
-                          const isCurrent = pl.id === selectedPlayer.id;
+                          const isCurrent = pl.id === selectedPlayer?.id;
                           return (
                             <button
                               key={pl.id}

@@ -74,68 +74,7 @@ interface PterodactylOverviewProps {
   onQuickNavigate: (tab: 'panel' | 'discord' | 'teams' | 'affiche' | 'events') => void;
 }
 
-const INITIAL_LIVE_PLAYERS: LivePlayer[] = [
-  {
-    id: 1,
-    name: 'O5-1 [Fondateur]',
-    steamId: '76561198042198311@steam',
-    role: 'FIM Alpha-1 "Bras Droit Rouge"',
-    teamColor: '#DC143C',
-    hp: 150,
-    badgeText: 'FONDATEUR O5',
-    badgeHex: '#DC143C'
-  },
-  {
-    id: 2,
-    name: 'ShadowSlayer',
-    steamId: '76561198112233445@steam',
-    role: 'SCP-049 (Docteur de la Peste)',
-    teamColor: '#C50000',
-    hp: 2200,
-    badgeText: '★ VIP KETER ★',
-    badgeHex: '#DC143C'
-  },
-  {
-    id: 3,
-    name: 'Kaelen_MTF',
-    steamId: '76561198334455667@steam',
-    role: 'Capitaine MTF Nine-Tailed Fox',
-    teamColor: '#00B7EB',
-    hp: 120,
-    badgeText: 'MODÉRATEUR',
-    badgeHex: '#00B7EB'
-  },
-  {
-    id: 4,
-    name: 'Luna_SCP',
-    steamId: '76561198667788990@steam',
-    role: 'La Main du Serpent (Custom)',
-    teamColor: '#FF0090',
-    hp: 125,
-    badgeText: '♦ NITRO BOOSTER',
-    badgeHex: '#FF1493'
-  },
-  {
-    id: 5,
-    name: 'Aurelien_92',
-    steamId: '76561198223344556@steam',
-    role: 'Personnel Classe-D',
-    teamColor: '#FF9966',
-    hp: 100,
-    badgeText: '⚡ VIP EUCLIDE',
-    badgeHex: '#FAFF86'
-  },
-  {
-    id: 6,
-    name: 'Dr_Vance_FR',
-    steamId: '76561198998877665@steam',
-    role: 'Scientifique Superviseur',
-    teamColor: '#FAFF86',
-    hp: 100,
-    badgeText: 'JOUEUR',
-    badgeHex: '#A0A0A0'
-  }
-];
+const INITIAL_LIVE_PLAYERS: LivePlayer[] = [];
 
 export const PterodactylOverview: React.FC<PterodactylOverviewProps> = ({
   serverState,
@@ -294,7 +233,7 @@ export const PterodactylOverview: React.FC<PterodactylOverviewProps> = ({
             <Users className="w-4 h-4 text-cyan-400" />
           </div>
           <div className="text-lg font-bold font-mono tabular-nums text-white">
-            28 / 32 Joueurs
+            {players.length} / 32 Joueurs
           </div>
           <div className="text-xs text-slate-400">
             {staffList.length} Staffs · {vipTiers.reduce((acc, v) => acc + v.assignedPlayers.length, 0)} VIPs configurés
@@ -309,10 +248,10 @@ export const PterodactylOverview: React.FC<PterodactylOverviewProps> = ({
           <div className="text-lg font-bold font-mono tabular-nums text-white">
             {liveApiMetrics
               ? `${liveApiMetrics.cpuPercent}% · ${liveApiMetrics.ramGb} Go`
-              : '34.2% · 5.4 / 8.0 Go'}
+              : 'En attente API'}
           </div>
           <div className="text-xs font-mono text-slate-400">
-            EXILED 9.5.1 · LocalAdmin Port {serverPort}
+            EXILED 9.15.3 · LocalAdmin Port {serverPort}
           </div>
         </div>
 
@@ -646,7 +585,14 @@ export const PterodactylOverview: React.FC<PterodactylOverviewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/70 text-xs">
-              {players.map((p) => (
+              {players.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-slate-400 font-mono">
+                    Aucun joueur réel connecté pour le moment sur play.lumishost.com:{serverPort}.
+                  </td>
+                </tr>
+              ) : (
+                players.map((p) => (
                 <tr key={p.id} className="hover:bg-slate-800/40">
                   <td className="py-3 px-3">
                     <span className="font-mono tabular-nums text-slate-400">#{p.id}</span> ·{' '}
@@ -696,7 +642,8 @@ export const PterodactylOverview: React.FC<PterodactylOverviewProps> = ({
                     </div>
                   </td>
                 </tr>
-              ))}
+                ))
+              )}
             </tbody>
           </table>
         </div>
